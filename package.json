@@ -1,0 +1,18 @@
+{
+  "name": "fundora-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "dev:api": "pnpm --filter @fundora/api start:dev",
+    "dev:web": "pnpm --filter @fundora/web dev",
+    "build": "pnpm -r build",
+    "db:sync": "pnpm --filter @fundora/api schema:sync",
+    "db:migrate": "pnpm --filter @fundora/api migration:run"
+  }
+}

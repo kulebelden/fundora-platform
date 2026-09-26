@@ -1,0 +1,63 @@
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  FINANCE_OFFICER = 'FINANCE_OFFICER',
+  MODERATOR = 'MODERATOR',
+  FUNDRAISER = 'FUNDRAISER',
+  DONOR = 'DONOR',
+}
+
+export enum CampaignStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  LIVE = 'LIVE',
+  SUSPENDED = 'SUSPENDED',
+  COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED',
+}
+
+export enum LedgerAccountType {
+  ASSET = 'ASSET',
+  LIABILITY = 'LIABILITY',
+  EQUITY = 'EQUITY',
+  REVENUE = 'REVENUE',
+  EXPENSE = 'EXPENSE',
+}
+
+export enum TransactionStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REVERSED = 'REVERSED',
+}
+
+export enum PaymentChannel {
+  MTN_MOMO = 'MTN_MOMO',
+  AIRTEL_MONEY = 'AIRTEL_MONEY',
+  CARD = 'CARD',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+}
+
+export enum EntryType {
+  DEBIT = 'DEBIT',
+  CREDIT = 'CREDIT',
+}
+
+export enum WithdrawalStatus {
+  REQUESTED = 'REQUESTED',
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  APPROVED = 'APPROVED',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED',
+}
+
+export enum KycStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  SUBMITTED = 'SUBMITTED',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}

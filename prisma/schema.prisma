@@ -1,0 +1,452 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  phoneNumber   String?         @unique
+  passwordHash  String
+  role          UserRole        @default(DONOR)
+  isEmailVerified  Boolean      @default(false)
+  isPhoneVerified  Boolean      @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  profile       UserProfile?    @oneToOne(fields: [id], references: [userId], onDelete: Cascade)
+  campaigns     Campaign[]
+  donations     PaymentIntent[]
+  withdrawals   WithdrawalRequest[]
+  kyc           KycProfile?
+  refreshTokens RefreshToken[]
+}
+
+model UserProfile {
+  userId        String   @id
+  firstName     String
+  lastName      String
+  avatarUrl     String?
+  nationalIdNumber String?
+  countryCode   String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model CampaignCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  campaigns   Campaign[]
+}
+
+model MedicalSubCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  categoryId  String
+  category    CampaignCategory @relation(fields: [categoryId], references: [id])
+  campaigns   Campaign[]
+}
+
+model Campaign {
+  id             String          @id @default(uuid())
+  creatorId      String
+  creator        User            @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  categoryId     String
+  category       CampaignCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title          String          @length(1, 200)
+  slug           String          @unique @length(1, 220)
+  story          String
+  coverImageUrl  String?
+  targetAmount   String
+  currency       String          @length(3)
+  status         CampaignStatus  @default(DRAFT)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  wallet         CampaignWallet? @oneToOne(fields: [id], references: [campaignId])
+  updates        CampaignUpdate[]
+  donations      PaymentIntent[]
+  medicalSubCategoryId String?
+  medicalSubCategory MedicalSubCategory? @relation(fields: [medicalSubCategoryId], references: [id])
+}
+
+model CampaignWallet {
+  campaignId    String @id
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  clearedBalance String @default("0")
+  pendingBalance String @default("0")
+  updatedAt     DateTime @updatedAt
+}
+
+model CampaignUpdate {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+}
+
+model Donation {
+  id                 String          @id @default(uuid())
+  campaignId         String
+  campaign           Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  donorId            String?
+  donor              User?           @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  amount             String
+  currency           String          @length(3)
+  platformFee        Float
+  processingFee      Float
+  netAmount          String
+  channel            PaymentChannel
+  providerReference  String?         @unique
+  status             TransactionStatus @default(PENDING)
+  isAnonymous        Boolean         @default(false)
+  donorName          String?
+  clientSecret       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model Payout {
+  id                String            @id @default(uuid())
+  campaignId        String
+  campaign          Campaign          @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  grossAmount       String
+  serviceFee        String
+  netAmount         String
+  currency          String            @length(3)
+  bankAccountDetails Json
+  status            PayoutStatus      @default(REQUESTED)
+  rejectionReason   String?
+  payoutReference   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model KycProfile {
+  id                 String        @id @default(uuid())
+  userId             String        @unique
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nationalIdOrPassport String
+  documentUrl        String
+  status             KycStatus     @default(NOT_STARTED)
+  rejectionReason    String?
+  reviewedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model LedgerAccount {
+  id     String @id @default(uuid())
+  code   String @unique
+  name   String
+  type   LedgerAccountType
+  currency String @length(3)
+}
+
+model LedgerTransaction {
+  id          String          @id @default(uuid())
+  referenceId String          @unique
+  description String
+  status      TransactionStatus @default(PENDING)
+  createdAt   DateTime        @default(now())
+  entries     LedgerEntry[]
+}
+
+model LedgerEntry {
+  id          String          @id @default(uuid())
+  transactionId String
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  accountId   String
+  account     LedgerAccount   @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  amount      String
+  entryType   EntryType
+}
+
+model PaymentIntent {
+  id                 String          @id @default(uuid())
+  campaignId         String
+  campaign           Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  donorId            String?
+  donor              User?           @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  amount             String
+  currency           String          @length(3)
+  channel            PaymentChannel
+  providerReference  String?         @unique
+  status             TransactionStatus @default(PENDING)
+  isAnonymous        Boolean         @default(false)
+  clientSecret       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model ProcessedWebhook {
+  providerEventId String   @id @length(191)
+  providerName    String
+  processedAt     DateTime @default(now())
+  payload         Json
+}
+
+model WithdrawalRequest {
+  id                String            @id @default(uuid())
+  campaignId        String
+  campaign          Campaign          @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  grossAmount       String
+  serviceFee        String
+  netAmount         String
+  currency          String            @length(3)
+  bankAccountDetails Json
+  status            WithdrawalStatus  @default(REQUESTED)
+  rejectionReason   String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  payoutReference   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model EmergencyZone {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  geometry    Json
+  severity    Severity
+  status      ZoneStatus @default(ACTIVE)
+  ngoVerified Boolean  @default(false)
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MemorialGallery {
+  id          String   @id @default(uuid())
+  campaignId  String   @unique
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  photoUrl    String
+  caption     String?
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model CorporateMatch {
+  id              String   @id @default(uuid())
+  campaignId      String
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  matcherName     String
+  matcherLogo     String?
+  matchPercent    Float
+  maxMatchAmount  String
+  status          MatchStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+}
+
+model RecurringPledge {
+  id            String          @id @default(uuid())
+  campaignId    String
+  campaign      Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  donorId       String
+  donor         User            @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  amount        String
+  currency      String          @length(3)
+  frequency     PledgeFrequency
+  nextChargeAt  DateTime
+  status        PledgeStatus    @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+}
+
+model TeamFundraiser {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  name        String
+  goalAmount  String
+  raisedAmount String @default("0")
+  members     String[]
+  createdAt   DateTime @default(now())
+}
+
+model SchoolFunding {
+  id          String   @id @default(uuid())
+  campaignId  String   @unique
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  schoolName  String
+  location    String
+  gradeLevel  String
+  studentsCount Int?
+  createdAt   DateTime @default(now())
+}
+
+model MemorialMessage {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  authorName  String
+  message     String
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model PetCare {
+  id          String   @id @default(uuid())
+  campaignId  String   @unique
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  petName     String
+  petType     String
+  petBreed    String?
+  medicalNeed String
+  createdAt   DateTime @default(now())
+}
+
+model DeepLinkToken {
+  id              String   @id @default(uuid())
+  campaignId      String
+  token           String   @unique
+  platform        String
+  deepLinkUrl     String
+  appStoreUrl     String
+  playStoreUrl    String?
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  consumedAt      DateTime?
+}
+
+model NotificationSubscription {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  action      String
+  actorId     String?
+  details     Json?
+  createdAt   DateTime @default(now())
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE_OFFICER
+  MODERATOR
+  FUNDRAISER
+  DONOR
+}
+
+enum CampaignStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  LIVE
+  SUSPENDED
+  COMPLETED
+  REJECTED
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum PaymentChannel {
+  MTN_MOMO
+  AIRTEL_MONEY
+  CARD
+  BANK_TRANSFER
+}
+
+enum KycStatus {
+  NOT_STARTED
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum EntryType {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum Severity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+  EXTREME
+}
+
+enum ZoneStatus {
+  ACTIVE
+  CONTAINED
+  RESOLVED
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PENDING_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum PledgeFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum PledgeStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  COMPLETED
+}
+
+enum MatchStatus {
+  ACTIVE
+  EXPIRED
+  FUNDED
+}

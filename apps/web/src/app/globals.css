@@ -1,0 +1,610 @@
+@tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+
+  @layer base {
+    html {
+      overflow-x: hidden;
+    }
+
+    :root {
+      /* HopeNest palette as HSL triplets so Tailwind tokens can add opacity. */
+    --background: 0 0% 100%;
+    --foreground: 215 60% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 60% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 60% 12%;
+
+    /* Deep navy #002B66 */
+    --primary: 215 100% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 40% 96%;
+    --secondary-foreground: 215 100% 20%;
+
+    /* Electric blue #0066FF */
+    --accent: 216 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Emerald #00A86B */
+    --success: 158 100% 33%;
+    --success-foreground: 0 0% 100%;
+
+    /* Amber #FF9900 */
+    --warm: 36 100% 50%;
+    --warm-foreground: 215 60% 12%;
+
+    --destructive: 0 74% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 20% 42%;
+
+    --border: 214 30% 89%;
+    --input: 214 30% 89%;
+    --ring: 216 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Data viz: one validated series hue (dataviz reference palette, slot 1). */
+    --viz-series-1: #2a78d6;
+    --viz-grid: rgb(0 43 102 / 0.08);
+  }
+
+  .dark {
+    --background: 215 47% 9%;
+    --foreground: 210 30% 96%;
+
+    --card: 215 44% 12%;
+    --card-foreground: 210 30% 96%;
+
+    --popover: 215 44% 12%;
+    --popover-foreground: 210 30% 96%;
+
+    --primary: 216 100% 62%;
+    --primary-foreground: 215 60% 10%;
+
+    --secondary: 215 35% 18%;
+    --secondary-foreground: 210 30% 96%;
+
+    --accent: 216 100% 62%;
+    --accent-foreground: 215 60% 10%;
+
+    --success: 158 70% 42%;
+    --success-foreground: 215 60% 10%;
+
+    --warm: 36 100% 58%;
+    --warm-foreground: 215 60% 10%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 210 30% 96%;
+
+    --muted: 215 35% 18%;
+    --muted-foreground: 214 18% 66%;
+
+    --border: 215 30% 22%;
+    --input: 215 30% 22%;
+    --ring: 216 100% 62%;
+
+    /* Same hue, stepped for the dark surface (validated separately). */
+    --viz-series-1: #3987e5;
+    --viz-grid: rgb(255 255 255 / 0.08);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular figures keep money columns from jittering as values change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .brand-gradient {
+    background-image: linear-gradient(135deg, #002b66 0%, #013a8a 45%, #0066ff 100%);
+  }
+
+  /**
+   * HopeNest hero backdrop: twilight mountain scene with orbiting campaign cards
+   * and the smiling child. The image carries the visual story; the overlay is
+   * just a faint dark wash so the white text stays readable.
+   */
+  .hero-backdrop {
+    background-image: url('/hero-bg.png');
+    background-size: cover;
+    background-position: center 30%;
+    background-repeat: no-repeat;
+    position: relative;
+  }
+
+  .hero-backdrop::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(0, 20, 60, 0.18) 0%, rgba(0, 20, 60, 0.30) 50%, rgba(0, 10, 30, 0.55) 100%),
+      linear-gradient(90deg, rgba(0, 10, 30, 0.45) 0%, rgba(0, 10, 30, 0.15) 50%, rgba(0, 10, 30, 0.05) 100%);
+    pointer-events: none;
+  }
+
+  /*
+   * The backdrop art has campaign cards drawn into its right half. On narrow
+   * screens those land behind the headline, so the wash is much heavier there.
+   */
+  @media (max-width: 1023px) {
+    .hero-backdrop::before {
+      background:
+        linear-gradient(180deg, rgba(0, 15, 45, 0.78) 0%, rgba(0, 15, 45, 0.7) 50%, rgba(0, 10, 30, 0.85) 100%);
+    }
+  }
+
+  .hero-backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(42% 40% at 74% 22%, rgb(0 168 107 / 0.12), transparent 60%),
+      radial-gradient(34% 34% at 88% 62%, rgb(255 153 0 / 0.10), transparent 60%),
+      radial-gradient(50% 50% at 62% 70%, rgb(0 102 255 / 0.15), transparent 60%);
+    pointer-events: none;
+  }
+
+  /** Floating campaign cards orbit the glowing network globe. */
+  .hero-orbit {
+    position: absolute;
+    will-change: transform;
+    animation: hero-orbit 14s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .hero-orbit.delay-1 { animation-delay: -2s; }
+  .hero-orbit.delay-2 { animation-delay: -6s; }
+  .hero-orbit.delay-3 { animation-delay: -10s; }
+
+  @keyframes hero-orbit {
+    0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
+    25% { transform: translateY(-14px) translateX(8px) rotate(1.5deg); }
+    50% { transform: translateY(6px) translateX(-10px) rotate(-1deg); }
+    75% { transform: translateY(-8px) translateX(6px) rotate(1deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-orbit { animation: none; }
+  }
+
+  .hero-glow {
+    background:
+      radial-gradient(60% 55% at 15% 20%, rgb(0 168 107 / 0.28), transparent 60%),
+      radial-gradient(45% 50% at 85% 15%, rgb(255 153 0 / 0.22), transparent 60%);
+  }
+
+  /**
+   * `hero-glow` sets the background shorthand, which on its own wipes the
+   * `brand-gradient` image. This re-layers both so the pairing renders as
+   * intended: brand gradient underneath, emerald and amber glows on top.
+   */
+  .brand-gradient.hero-glow {
+    background-image:
+      radial-gradient(60% 55% at 15% 20%, rgb(0 168 107 / 0.28), transparent 60%),
+      radial-gradient(45% 50% at 85% 15%, rgb(255 153 0 / 0.22), transparent 60%),
+      linear-gradient(135deg, #002b66 0%, #013a8a 45%, #0066ff 100%);
+    background-repeat: no-repeat;
+  }
+
+  .hero-backdrop.hero-glow {
+    background-image: url('/hero-bg.png');
+    background-size: cover;
+    background-position: center 30%;
+    background-repeat: no-repeat;
+  }
+
+  /**
+   * Inner-page hero: the same brand gradient as the landing hero, with a faint
+   * technical grid so the flat colour never reads as an empty banner.
+   */
+  .hero-grid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(70% 70% at 30% 20%, #000 0%, transparent 75%);
+    -webkit-mask-image: radial-gradient(70% 70% at 30% 20%, #000 0%, transparent 75%);
+    pointer-events: none;
+  }
+
+  /**
+   * Per-page accent layers for the inner heroes. Each one re-layers the brand
+   * gradient with a different glow, so a medical page, a pricing page and a
+   * crisis page read as siblings rather than copies. The `-light` variants sit
+   * behind the editorial (paper) layout instead.
+   */
+  .brand-gradient.hero-tone-emerald {
+    background-image:
+      radial-gradient(58% 52% at 14% 18%, rgb(0 168 107 / 0.34), transparent 62%),
+      radial-gradient(46% 48% at 86% 12%, rgb(255 153 0 / 0.20), transparent 62%),
+      linear-gradient(135deg, #002b66 0%, #013a8a 45%, #0066ff 100%);
+    background-repeat: no-repeat;
+  }
+
+  .brand-gradient.hero-tone-sky {
+    background-image:
+      radial-gradient(58% 52% at 82% 14%, rgb(56 189 248 / 0.30), transparent 62%),
+      radial-gradient(46% 50% at 12% 24%, rgb(0 102 255 / 0.30), transparent 62%),
+      linear-gradient(135deg, #002b66 0%, #013a8a 45%, #0066ff 100%);
+    background-repeat: no-repeat;
+  }
+
+  .brand-gradient.hero-tone-amber {
+    background-image:
+      radial-gradient(58% 52% at 16% 16%, rgb(255 153 0 / 0.30), transparent 62%),
+      radial-gradient(50% 50% at 84% 20%, rgb(239 68 68 / 0.22), transparent 62%),
+      linear-gradient(135deg, #002b66 0%, #013a8a 45%, #0066ff 100%);
+    background-repeat: no-repeat;
+  }
+
+  .hero-tone-emerald-light,
+  .hero-tone-sky-light,
+  .hero-tone-amber-light {
+    background-repeat: no-repeat;
+  }
+
+  .hero-tone-emerald-light {
+    background-image: radial-gradient(50% 60% at 88% 0%, rgb(0 168 107 / 0.10), transparent 70%);
+  }
+
+  .hero-tone-sky-light {
+    background-image: radial-gradient(50% 60% at 88% 0%, rgb(0 102 255 / 0.12), transparent 70%);
+  }
+
+  .hero-tone-amber-light {
+    background-image: radial-gradient(50% 60% at 88% 0%, rgb(255 153 0 / 0.16), transparent 70%);
+  }
+
+  /* Each tone exposes its accent as an RGB triplet for the photo veils below. */
+  .hero-tone-emerald { --hero-tint: 0 168 107; }
+  .hero-tone-sky { --hero-tint: 56 189 248; }
+  .hero-tone-amber { --hero-tint: 255 153 0; }
+
+  /**
+   * Aurora: the page photo sits under a brand-navy veil that is heaviest behind
+   * the copy. On phones the copy spans the full width, so the veil is uniform
+   * and darker; from `lg` it opens up on the right to let the photo show.
+   */
+  .hero-veil-aurora {
+    background:
+      radial-gradient(60% 70% at 12% 20%, rgb(var(--hero-tint, 0 168 107) / 0.28), transparent 65%),
+      linear-gradient(180deg, rgb(0 27 70 / 0.82) 0%, rgb(0 30 80 / 0.88) 55%, rgb(0 20 55 / 0.95) 100%);
+  }
+
+  @media (min-width: 1024px) {
+    .hero-veil-aurora {
+      background:
+        radial-gradient(55% 70% at 10% 20%, rgb(var(--hero-tint, 0 168 107) / 0.3), transparent 65%),
+        linear-gradient(90deg, rgb(0 27 70 / 0.95) 0%, rgb(0 43 102 / 0.84) 42%, rgb(0 60 150 / 0.45) 75%, rgb(0 60 150 / 0.25) 100%),
+        linear-gradient(0deg, rgb(0 20 55 / 0.6) 0%, transparent 40%);
+    }
+  }
+
+  /* Centered: an even, vignetted darkening so the photo frames the headline. */
+  .hero-veil-centered {
+    background:
+      radial-gradient(60% 55% at 50% 0%, rgb(var(--hero-tint, 0 168 107) / 0.3), transparent 70%),
+      radial-gradient(ellipse at center, rgb(0 25 65 / 0.6) 0%, rgb(0 15 45 / 0.84) 75%),
+      linear-gradient(180deg, rgb(0 43 102 / 0.35), rgb(0 15 45 / 0.6));
+  }
+
+  /* Signal: near-black navy, so the crisis and protection pages feel sober. */
+  .hero-signal-bg {
+    background-image:
+      radial-gradient(50% 60% at 10% 0%, rgb(var(--hero-tint, 255 153 0) / 0.18), transparent 70%),
+      linear-gradient(135deg, #040f26 0%, #081b3d 55%, #0b2552 100%);
+  }
+
+  /* The signal photo fades out towards the copy instead of ending on a hard edge. */
+  .hero-signal-photo {
+    opacity: 0.3;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 95%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 95%);
+  }
+
+  @media (min-width: 1024px) {
+    .hero-signal-photo {
+      opacity: 0.6;
+      mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+    }
+  }
+
+  /* Split: the photo panel is cut on a diagonal where it meets the copy. */
+  @media (min-width: 1024px) {
+    .hero-split-photo {
+      clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%);
+    }
+  }
+
+  .viz-bar {
+    background-color: var(--viz-series-1);
+  }
+
+  /* Signal: the figures scroll across the top like a news ticker. */
+  .hero-ticker {
+    animation: hero-ticker 32s linear infinite;
+  }
+
+  @keyframes hero-ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-ticker { animation: none; }
+  }
+
+  /* ------------------------------------------------------------ depth / 3D */
+
+  .hero-depth-bg {
+    background-image:
+      radial-gradient(70% 60% at 50% 0%, rgb(var(--hero-tint, 0 168 107) / 0.22), transparent 70%),
+      linear-gradient(160deg, #0a1030 0%, #0c1c4d 50%, #06245e 100%);
+  }
+
+  /* A glowing grid laid flat in perspective, so the hero has a floor to stand on. */
+  .hero-depth-floor {
+    position: absolute;
+    left: -50%;
+    right: -50%;
+    bottom: -10%;
+    height: 70%;
+    background-image:
+      linear-gradient(to right, rgb(var(--hero-tint, 0 168 107) / 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--hero-tint, 0 168 107) / 0.35) 1px, transparent 1px);
+    background-size: 56px 56px;
+    transform: perspective(600px) rotateX(62deg);
+    transform-origin: center bottom;
+    mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+    -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+  }
+
+  /* Extruded headline: stacked offsets read as the letters' side walls. */
+  .hero-3d-text {
+    text-shadow:
+      0 1px 0 #0a1d4a,
+      0 2px 0 #0a1b45,
+      0 3px 0 #091940,
+      0 4px 0 #08173b,
+      0 5px 0 #071536,
+      0 6px 0 #061331,
+      0 14px 24px rgb(0 0 0 / 0.55);
+  }
+
+  .depth-chip {
+    box-shadow: 0 4px 0 rgb(255 255 255 / 0.35), 0 10px 20px rgb(0 0 0 / 0.3);
+  }
+
+  /* Pressable button: a solid lower edge that it sinks into when pressed. */
+  .btn-3d {
+    box-shadow: 0 6px 0 #00754a, 0 14px 28px rgb(0 168 107 / 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .btn-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 #00754a, 0 18px 32px rgb(0 168 107 / 0.4);
+  }
+
+  .btn-3d:active {
+    transform: translateY(5px);
+    box-shadow: 0 1px 0 #00754a, 0 4px 10px rgb(0 168 107 / 0.3);
+  }
+
+  .hero-stage {
+    perspective: 1100px;
+  }
+
+  .hero-stage-inner {
+    transform-style: preserve-3d;
+    transform: rotateX(14deg) rotateY(-20deg) rotateZ(2deg);
+  }
+
+  .stage-photo {
+    transform: translateZ(-40px);
+    box-shadow: 0 30px 60px rgb(0 0 0 / 0.45);
+  }
+
+  .stage-card {
+    transform: translateZ(var(--z, 60px));
+    box-shadow:
+      1px 1px 0 #d6deea,
+      2px 2px 0 #cfd8e6,
+      3px 3px 0 #c8d2e2,
+      4px 4px 0 #c1ccde,
+      5px 5px 0 #bac6da,
+      0 24px 40px rgb(0 0 0 / 0.4);
+    animation: stage-float 6s ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @keyframes stage-float {
+    0%, 100% { transform: translateZ(var(--z, 60px)) translateY(0); }
+    50% { transform: translateZ(var(--z, 60px)) translateY(-10px); }
+  }
+
+  @media (max-width: 639px) {
+    .hero-stage-inner {
+      transform: rotateX(10deg) rotateY(-12deg);
+    }
+  }
+
+  /* Icon tile with a bevelled top light and a darker lower edge. */
+  .icon-3d {
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.35),
+      inset 0 -3px 0 rgb(0 0 0 / 0.2),
+      0 6px 14px rgb(0 0 0 / 0.2);
+  }
+
+  /*
+   * 3D content cards for the Ideas and Tips pages: tilted back in perspective,
+   * with a stepped edge, straightening up and lifting when hovered or focused.
+   */
+  .card-3d {
+    perspective: 1200px;
+  }
+
+  .card-3d-inner {
+    transform-style: preserve-3d;
+    transform: rotateX(5deg) rotateY(-5deg);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+    box-shadow:
+      1px 1px 0 hsl(var(--border)),
+      2px 2px 0 hsl(var(--border)),
+      3px 3px 0 hsl(var(--border)),
+      4px 4px 0 hsl(var(--border)),
+      5px 5px 0 hsl(var(--border)),
+      6px 6px 0 hsl(var(--border)),
+      0 22px 40px -12px rgb(0 43 102 / 0.28);
+  }
+
+  .card-3d:nth-child(even) .card-3d-inner {
+    transform: rotateX(5deg) rotateY(5deg);
+  }
+
+  .card-3d:hover .card-3d-inner,
+  .card-3d:focus-within .card-3d-inner {
+    transform: rotateX(0deg) rotateY(0deg) translateY(-6px);
+    box-shadow:
+      1px 1px 0 hsl(var(--border)),
+      2px 2px 0 hsl(var(--border)),
+      3px 3px 0 hsl(var(--border)),
+      0 30px 50px -12px rgb(0 43 102 / 0.35);
+  }
+
+  .card-3d-pop {
+    transform: translateZ(36px);
+  }
+
+  /* Outlined numeral that sits behind a 3D card's content. */
+  .numeral-3d {
+    color: transparent;
+    -webkit-text-stroke: 1.5px hsl(var(--border));
+    text-shadow: 4px 4px 0 hsl(var(--secondary));
+  }
+
+  /* Light section with a receding floor grid, the page-body echo of the hero. */
+  .depth-section {
+    position: relative;
+    overflow: hidden;
+    background-image: linear-gradient(180deg, hsl(var(--secondary) / 0.6), hsl(var(--background)));
+  }
+
+  .depth-section::before {
+    content: '';
+    position: absolute;
+    left: -50%;
+    right: -50%;
+    bottom: 0;
+    height: 60%;
+    background-image:
+      linear-gradient(to right, rgb(0 43 102 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0 43 102 / 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+    transform: perspective(700px) rotateX(60deg);
+    transform-origin: center bottom;
+    mask-image: linear-gradient(to top, #000, transparent 90%);
+    -webkit-mask-image: linear-gradient(to top, #000, transparent 90%);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage-card { animation: none; }
+  }
+
+  /**
+   * Light-page counterpart to `hero-grid`: a faint ruled sheet, so editorial
+   * heroes read as reference material rather than another gradient banner.
+   */
+  .hero-paper {
+    background-image:
+      linear-gradient(90deg, rgb(0 43 102 / 0.055) 1px, transparent 1px),
+      linear-gradient(180deg, rgb(0 43 102 / 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+  }
+
+  /* Staggered entrance, so hero content arrives in reading order. */
+  .hero-rise {
+    animation: hero-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .hero-rise-1 { animation-delay: 60ms; }
+  .hero-rise-2 { animation-delay: 140ms; }
+  .hero-rise-3 { animation-delay: 220ms; }
+  .hero-rise-4 { animation-delay: 300ms; }
+
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-rise {
+      animation: none;
+    }
+  }
+
+  /* Emerald rule under a header trigger for the section currently being viewed. */
+  .nav-active-bar {
+    animation: nav-bar-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes nav-bar-in {
+    from {
+      opacity: 0;
+      transform: scaleX(0.4);
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-active-bar {
+      animation: none;
+    }
+  }
+
+  /* Respect users who have asked the OS to reduce motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

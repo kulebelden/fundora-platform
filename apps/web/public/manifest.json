@@ -1,0 +1,50 @@
+{
+  "name": "HopeNest - Real People. Real Causes. Greater Impact.",
+  "short_name": "HopeNest",
+  "description": "Raise and give with confidence. HopeNest connects real people to real causes with bank-grade, fully auditable fund handling.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#002B66",
+  "theme_color": "#00A86B",
+  "categories": ["finance", "social", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start a campaign",
+      "short_name": "Fundraise",
+      "url": "/dashboard/campaigns"
+    },
+    {
+      "name": "Discover causes",
+      "short_name": "Discover",
+      "url": "/"
+    }
+  ]
+}

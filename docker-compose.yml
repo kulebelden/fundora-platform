@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fundora_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fundora_db
+      POSTGRES_USER: fundora_admin
+      POSTGRES_PASSWORD: super_secret_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - fundora_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fundora_admin -d fundora_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: fundora_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - fundora_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fundora_postgres_data:
+  fundora_redis_data:

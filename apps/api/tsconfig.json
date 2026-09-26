@@ -1,0 +1,14 @@
+{
+  "extends": "@fundora/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "removeComments": true,
+    // Only auto-load Node's globals. Loading every hoisted @types package breaks the
+    // build on empty stubs such as @types/minimatch (minimatch ships its own types).
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

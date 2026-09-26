@@ -1,0 +1,15 @@
+node_modules
+.env
+.env.*
+!.env.example
+dist
+.next
+out
+build
+coverage
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Files uploaded through the API (campaign cover photos)
+apps/api/uploads/
