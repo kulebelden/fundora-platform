@@ -45,3 +45,13 @@ export function isUnauthorized(error: unknown): boolean {
 export function isNotFound(error: unknown): boolean {
   return error instanceof AxiosError && error.response?.status === 404;
 }
+
+/**
+ * The address an unverified account signed up with, when a login was refused
+ * for that reason (the API's `EMAIL_NOT_VERIFIED`); otherwise null.
+ */
+export function unverifiedEmail(error: unknown): string | null {
+  if (!(error instanceof AxiosError) || error.response?.status !== 403) return null;
+  const data = error.response.data as { code?: unknown; email?: unknown } | undefined;
+  return data?.code === 'EMAIL_NOT_VERIFIED' && typeof data.email === 'string' ? data.email : null;
+}

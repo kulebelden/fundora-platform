@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { AlertCircle, ArrowLeft, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { BrandLoader } from '@/components/brand/brand-loader';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { KycStatusBadge } from '@/components/status-badge';
@@ -93,10 +94,7 @@ export function VerificationClient() {
         </div>
 
         {meLoading || isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading verification status…
-          </div>
+          <BrandLoader label="Loading verification status" className="py-24" />
         ) : !me ? (
           <Card className="mt-8 p-14 text-center">
             <h2 className="text-xl font-bold">Sign in to verify your identity</h2>

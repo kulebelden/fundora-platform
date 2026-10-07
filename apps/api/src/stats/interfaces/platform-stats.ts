@@ -2,7 +2,7 @@ export interface PlatformStats {
   /**
    * Gross raised in `reportingCurrency` only. The platform holds no FX rates, so
    * amounts in other currencies are deliberately NOT folded into this number —
-   * summing UGX into USD would be off by three orders of magnitude.
+  * summing currencies without exchange rates would produce misleading totals.
    */
   totalRaised: string;
   reportingCurrency: string;

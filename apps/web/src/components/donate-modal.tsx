@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { apiErrorMessage } from '@/lib/api';
 import { CURRENCIES, currencyMeta, formatMoney } from '@/lib/currency';
-import { useDonate, useMe } from '@/lib/queries';
+import { previewDonation } from '@/lib/fees';
+import { useDonate, useDonationFees, useMe } from '@/lib/queries';
 import type { CampaignSummary, DonationResponse } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,12 @@ export function DonateModal({
   const donate = useDonate();
   const meta = currencyMeta(currency);
   const numericAmount = Number(amount);
+  const { data: fees } = useDonationFees();
+  const split = previewDonation(
+    numericAmount,
+    method === 'bank_wire' ? 'bank' : 'card',
+    fees ? fees.platformFeePercent / 100 : undefined,
+  );
   const amountValid = Number.isFinite(numericAmount) && numericAmount >= 1;
   const nameValid = donorName.trim().length >= 2;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail.trim());
@@ -201,6 +208,15 @@ export function DonateModal({
                     Enter an amount of at least {meta.symbol}1.
                   </p>
                 ) : null}
+                {/* What the campaign receives, at the fee the super admin has set right now. */}
+                {amountValid && fees ? (
+                  <p className="tabular text-xs text-muted-foreground">
+                    The campaign receives{' '}
+                    <span className="font-bold text-success">{formatMoney(split.net, currency)}</span> after the{' '}
+                    {fees.platformFeePercent}% platform fee
+                    {split.processingFee > 0 ? ` and ${fees.cardProcessingFeePercent}% card processing` : ''}.
+                  </p>
+                ) : null}
               </div>
 
               <fieldset className="space-y-3 rounded-lg border p-4">
@@ -249,7 +265,7 @@ export function DonateModal({
                     autoComplete="tel"
                     value={donorPhone}
                     maxLength={20}
-                    placeholder="+256 700 000000"
+                    placeholder="+1 202 555 0143"
                     onChange={(event) => setDonorPhone(event.target.value)}
                     aria-invalid={touched && !phoneValid}
                   />
@@ -393,6 +409,20 @@ function DonationHandoff({
         <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Amount</dt>
           <dd className="tabular font-bold">{formatMoney(receipt.amount, receipt.currency)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-muted-foreground">Platform fee</dt>
+          <dd className="tabular">−{formatMoney(receipt.platformFee, receipt.currency)}</dd>
+        </div>
+        {receipt.processingFee > 0 ? (
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">Card processing</dt>
+            <dd className="tabular">−{formatMoney(receipt.processingFee, receipt.currency)}</dd>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-muted-foreground">Campaign receives</dt>
+          <dd className="tabular font-bold text-success">{formatMoney(receipt.netAmount, receipt.currency)}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">
           <dt className="text-muted-foreground">Reference</dt>

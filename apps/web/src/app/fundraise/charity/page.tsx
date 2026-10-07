@@ -2,16 +2,20 @@ import type { Metadata } from 'next';
 import { ArrowRight, BadgeCheck, Building2, HeartHandshake, Handshake, ShieldCheck } from 'lucide-react';
 import { MarketingPage } from '@/components/marketing-page';
 import { Card } from '@/components/ui/card';
+import { feeLabel, fetchPlatformFeeRate } from '@/lib/fees';
 import { HERO_IMAGES } from '@/lib/hero-images';
 
 export const metadata: Metadata = {
   title: 'Charity Fundraising',
   description:
-    'Nonprofits, hospitals and schools can raise directly on HopeNest. Same verification, same ledger, and charitable causes pay no platform fee.',
+    'Nonprofits, hospitals and schools can raise directly on HopeNest. Same verification, same ledger, and one transparent fee shown before anything is confirmed.',
   alternates: { canonical: '/fundraise/charity' },
 };
 
-const FEATURES = [
+/** The platform fee is set by the super admin, so the page is rendered per request. */
+export const dynamic = 'force-dynamic';
+
+const featuresFor = (fee: string) => [
   {
     Icon: Building2,
     title: 'Raise as an institution',
@@ -24,8 +28,8 @@ const FEATURES = [
   },
   {
     Icon: HeartHandshake,
-    title: 'No platform fee for charitable causes',
-    body: 'Medical and charitable causes pay no platform fee on HopeNest. The payment processor still takes its slice — we show you the gross, the processor fee and the net before you confirm anything.',
+    title: 'One transparent fee',
+    body: `Charitable causes pay the same ${fee} platform fee as every campaign, plus the payment processor's slice on card gifts. We show you the gross, each fee and the net before you confirm anything.`,
   },
   {
     Icon: Handshake,
@@ -34,7 +38,10 @@ const FEATURES = [
   },
 ];
 
-export default function CharityFundraisingPage() {
+export default async function CharityFundraisingPage() {
+  const fee = feeLabel(await fetchPlatformFeeRate());
+  const FEATURES = featuresFor(fee);
+
   return (
     <MarketingPage
       image={HERO_IMAGES.charity}
@@ -44,17 +51,17 @@ export default function CharityFundraisingPage() {
       tone="emerald"
       title="Fundraise for a"
       accent="charity."
-      lead="Nonprofits, hospitals, schools and community organisations can raise directly on HopeNest — with the same verification, the same ledger, and no platform fee for charitable causes."
+      lead="Nonprofits, hospitals, schools and community organisations can raise directly on HopeNest — with the same verification, the same ledger, and one transparent fee shown up front."
       crumbs={[{ label: 'Fundraise', href: '/fundraise' }, { label: 'Charity fundraising' }]}
       primaryCta={{ label: 'Start a Campaign', href: '/create' }}
       secondaryCta={{ label: 'Partnerships', href: '/partnerships', icon: Handshake }}
       spotlight={{
         title: 'What charities get',
-        note: 'The same platform, the same controls, without the platform fee.',
+        note: 'The same platform, the same controls, the same fee.',
         items: FEATURES.map(({ Icon, title }) => ({ icon: Icon, title })),
       }}
       highlights={[
-        { value: '0%', label: 'Platform fee on charitable causes', icon: HeartHandshake, tone: 'success' },
+        { value: fee, label: 'Platform fee, shown before you confirm', icon: HeartHandshake, tone: 'success' },
         { value: 'Same', label: 'Verification and ledger as any campaign', icon: ShieldCheck },
         { value: 'Direct', label: 'Reach beyond your own donor list', icon: Building2, tone: 'accent' },
       ]}
@@ -67,7 +74,7 @@ export default function CharityFundraisingPage() {
       cta={{
         label: 'Start a Campaign',
         href: '/create',
-        note: 'Charitable causes pay no platform fee.',
+        note: `A ${fee} platform fee, shown before anything is confirmed.`,
       }}
     >
       <section className="border-y bg-secondary/40 py-16 sm:py-20">

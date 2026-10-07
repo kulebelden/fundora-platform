@@ -1,6 +1,6 @@
 import type * as React from 'react';
 import Link from 'next/link';
-import { BadgeCheck, Quote, ScrollText, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Quote, ScrollText, ShieldCheck } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 
 const PROOF = [
@@ -64,12 +64,21 @@ export function AuthSplitLayout({
       </aside>
 
       {/* -------------------------------------------------- form panel */}
-      <main id="main" className="flex flex-col justify-center px-6 py-12 sm:px-12">
-        <div className="mx-auto w-full max-w-md">
-          <Link href="/" className="mb-10 inline-block lg:hidden">
+      <main id="main" className="flex flex-col px-5 pb-12 pt-5 sm:px-12 sm:pt-8">
+        <div className="mx-auto flex w-full max-w-md items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="group -ml-2 inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            Back to home
+          </Link>
+          <Link href="/" aria-label="HopeNest home" className="lg:hidden">
             <Logo />
           </Link>
+        </div>
 
+        <div className="mx-auto my-auto w-full max-w-md pt-8 sm:pt-10">
           <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
           <p className="mt-2 text-muted-foreground">{subtitle}</p>
 

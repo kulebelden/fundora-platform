@@ -10,7 +10,6 @@ import {
   ExternalLink,
   FolderTree,
   LayoutDashboard,
-  Loader2,
   LogOut,
   Mail,
   Megaphone,
@@ -21,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/admin/notification-bell';
+import { BrandLoader } from '@/components/brand/brand-loader';
 import { Logo } from '@/components/brand/logo';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
@@ -262,13 +262,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const overview = useAdminOverview(allowedOverview);
   const overviewData = allowedOverview ? overview.data : undefined;
   const secondsAgo = useSecondsSince(overview.dataUpdatedAt);
-
   React.useEffect(() => setDrawerOpen(false), [pathname]);
 
   if (isLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-secondary/40">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <BrandLoader size="lg" label="Checking your access" className="brand-loader-delayed" />
       </div>
     );
   }

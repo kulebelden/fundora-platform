@@ -138,7 +138,7 @@ export class StripePaymentAdapter implements IPaymentAdapter {
     const eventType: string = eventPayload?.type ?? '';
     const object = eventPayload?.data?.object ?? {};
     const amount = Number(object.amount) / 100;
-    const currency = (object.currency ?? 'ugx').toUpperCase();
+    const currency = (object.currency ?? 'usd').toUpperCase();
 
     let status: TransactionStatus;
     if (eventType === 'payment_intent.succeeded') {

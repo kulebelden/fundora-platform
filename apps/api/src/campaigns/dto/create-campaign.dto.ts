@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsPositive,
@@ -13,6 +14,7 @@ import {
   MinLength,
   ValidateBy,
 } from 'class-validator';
+import { SUPPORTED_CURRENCIES } from '../../common/supported-markets';
 import { LOCAL_COVER_URL } from '../../uploads/uploads.constants';
 
 /** An https image link, or a cover this API stored via POST /uploads/campaign-cover. */
@@ -51,12 +53,16 @@ export class CreateCampaignDto {
   @Type(() => Number)
   @IsNumber()
   @IsPositive()
-   @Min(1000)
+  // Mirrors MIN_GOAL in the web campaign wizard, whose smallest preset is 500.
+  @Min(500, { message: 'targetAmount must be at least 500' })
   targetAmount!: number;
 
   @IsString()
   @MaxLength(3)
-  currency = 'UGX';
+  @IsIn(SUPPORTED_CURRENCIES, {
+    message: `currency must be one of: ${SUPPORTED_CURRENCIES.join(', ')}`,
+  })
+  currency = 'USD';
 
   @IsOptional()
   @IsDateString()

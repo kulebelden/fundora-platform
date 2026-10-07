@@ -81,6 +81,73 @@ export class EnvironmentVariables {
 
   @IsString()
   JWT_REFRESH_EXPIRES_IN = '7d';
+
+  /*
+   * Social sign-in. Each provider switches on only when all of its values are
+   * set; the web app hides nothing but disables a provider that is off.
+   */
+
+  /** Public origin of the web app, e.g. https://hopenest.org. Builds OAuth redirect URIs. */
+  @IsOptional()
+  @IsString()
+  APP_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_CLIENT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_CLIENT_SECRET?: string;
+
+  /** The Apple "Services ID", not the app's bundle ID. */
+  @IsOptional()
+  @IsString()
+  APPLE_CLIENT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  APPLE_TEAM_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  APPLE_KEY_ID?: string;
+
+  /** Contents of the .p8 key. Newlines may be written as literal "\n". */
+  @IsOptional()
+  @IsString()
+  APPLE_PRIVATE_KEY?: string;
+
+  /*
+   * Outgoing email (verification links). Any SMTP provider works. With no
+   * SMTP_HOST, emails are not sent and their links are written to the log, so
+   * sign-up can still be tested locally.
+   */
+  @IsOptional()
+  @IsString()
+  SMTP_HOST?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  SMTP_PORT: number = 587;
+
+  /** true for port 465 (TLS from the start); false for 587 (STARTTLS). */
+  @Transform(toBoolean)
+  @IsBoolean()
+  SMTP_SECURE: boolean = false;
+
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_PASS?: string;
+
+  /** Sender shown to users, e.g. "HopeNest <no-reply@hopenest.org>". */
+  @IsString()
+  MAIL_FROM = 'HopeNest <no-reply@hopenest.local>';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

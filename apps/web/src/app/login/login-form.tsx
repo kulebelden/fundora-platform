@@ -7,11 +7,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AlertCircle, Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
+import { AuthDivider, OAUTH_ERRORS, OAuthButtons } from '@/components/auth/oauth-buttons';
+import { UnverifiedNotice } from '@/components/auth/check-inbox';
 import { AuthSplitLayout } from '@/components/auth-split-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiErrorMessage } from '@/lib/api';
+import { apiErrorMessage, unverifiedEmail } from '@/lib/api';
 import { isAdminRole } from '@/lib/types';
 import { useLogin } from '@/lib/queries';
 
@@ -28,7 +30,12 @@ export function LoginForm() {
   const login = useLogin();
 
   const [showPassword, setShowPassword] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | null>(null);
+  // A failed Google or Apple sign-in comes back here as `?oauth_error=<reason>`.
+  const oauthError = searchParams.get('oauth_error');
+  const [formError, setFormError] = React.useState<string | null>(
+    oauthError ? (OAUTH_ERRORS[oauthError] ?? OAUTH_ERRORS.failed) : null,
+  );
+  const [unverified, setUnverified] = React.useState<string | null>(null);
 
   const {
     register,
@@ -51,7 +58,11 @@ export function LoginForm() {
       // Staff land on their console; everyone else on their campaigns.
       onSuccess: (data) =>
         router.push(safeNext ?? (isAdminRole(data.user.role) ? '/admin' : '/dashboard/campaigns')),
-      onError: (error) => setFormError(apiErrorMessage(error, 'Could not sign you in.')),
+      onError: (error) => {
+        const pending = unverifiedEmail(error);
+        setUnverified(pending);
+        setFormError(pending ? null : apiErrorMessage(error, 'Could not sign you in.'));
+      },
     });
   };
 
@@ -68,17 +79,23 @@ export function LoginForm() {
         </>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-        {formError ? (
-          <div
-            role="alert"
-            className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-sm"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <span>{formError}</span>
-          </div>
-        ) : null}
+      {unverified ? <UnverifiedNotice email={unverified} /> : null}
 
+      {/* Above everything, so it reads first whichever way the sign-in failed. */}
+      {formError ? (
+        <div
+          role="alert"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <span>{formError}</span>
+        </div>
+      ) : null}
+
+      <OAuthButtons next={safeNext} />
+      <AuthDivider />
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="email">Email address</Label>
           <Input

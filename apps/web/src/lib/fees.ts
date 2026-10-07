@@ -17,8 +17,11 @@ export const WITHDRAWAL_FEE_LABEL = '8%';
  *
  * Processing is waived on BANK_TRANSFER only; every other channel pays it.
  */
+/**
+ * Fallback only. The live platform fee is set by the super admin and read with
+ * `fetchPlatformFeeRate()`; this is the rate used if the API cannot be reached.
+ */
 export const PLATFORM_FEE_RATE = 0.05;
-export const PLATFORM_FEE_LABEL = '5%';
 export const CARD_PROCESSING_FEE_RATE = 0.029;
 export const CARD_PROCESSING_FEE_LABEL = '2.9%';
 
@@ -29,13 +32,38 @@ export interface DonationSplit {
   net: number;
 }
 
+/** "5%", "4.5%": a fee rate as people read it. */
+export function feeLabel(rate: number): string {
+  return `${Math.round(rate * 10_000) / 100}%`;
+}
+
+/**
+ * Server-side read of the live platform fee for server-rendered pages. Never
+ * cached: a change by the super admin shows on the very next page load.
+ */
+export async function fetchPlatformFeeRate(): Promise<number> {
+  const origin = process.env.API_ORIGIN ?? 'http://localhost:3000';
+  try {
+    const response = await fetch(`${origin}/api/v1/payments/fees`, { cache: 'no-store' });
+    if (!response.ok) return PLATFORM_FEE_RATE;
+    const body = (await response.json()) as { platformFeePercent?: unknown };
+    return typeof body.platformFeePercent === 'number' ? body.platformFeePercent / 100 : PLATFORM_FEE_RATE;
+  } catch {
+    return PLATFORM_FEE_RATE;
+  }
+}
+
 /** Mirrors `LedgerService.settleDonation`'s split for display on the pricing page. */
-export function previewDonation(amount: number, channel: 'card' | 'bank' = 'card'): DonationSplit {
+export function previewDonation(
+  amount: number,
+  channel: 'card' | 'bank' = 'card',
+  platformFeeRate = PLATFORM_FEE_RATE,
+): DonationSplit {
   if (!Number.isFinite(amount) || amount <= 0) {
     return { gross: 0, platformFee: 0, processingFee: 0, net: 0 };
   }
   const round = (value: number) => Math.round(value * 100) / 100;
-  const platformFee = round(amount * PLATFORM_FEE_RATE);
+  const platformFee = round(amount * platformFeeRate);
   const processingFee = round(channel === 'bank' ? 0 : amount * CARD_PROCESSING_FEE_RATE);
   return {
     gross: amount,

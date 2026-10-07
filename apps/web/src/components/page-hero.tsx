@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   ArrowRight,
   ArrowUpRight,
+  ChevronLeft,
   ChevronRight,
   Home,
   ShieldCheck,
@@ -184,7 +185,25 @@ interface VariantInput extends Omit<PageHeroProps, 'highlights' | 'crumbs' | 'to
  * Top spacing shared by every layout. The header is sticky and already 4rem
  * tall, so the hero only needs a small breath before the breadcrumb.
  */
-const TOP = 'pt-5 sm:pt-7 lg:pt-8';
+const TOP = 'pt-3 sm:pt-7 lg:pt-8';
+
+/**
+ * Bottom spacing shared by every layout. Kept short on phones so the hero ends
+ * inside the first screen and the page's own content starts to show.
+ */
+const BOTTOM = 'pb-10 sm:pb-20 lg:pb-24';
+
+/** Lead paragraph size: a notch smaller on phones so it stays at four lines or so. */
+const LEAD = 'text-[0.9375rem] leading-relaxed sm:text-lg';
+
+/**
+ * Phones: the primary button spans the column, the way native apps present
+ * their main action. From `sm` up each layout's own button shape takes over.
+ */
+const CTA_ROW = 'flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-7 sm:gap-y-4';
+const CTA_PRIMARY = 'w-full justify-center sm:w-auto';
+/** Secondary text links get a full-size tap target on touch screens. */
+const CTA_SECONDARY = 'min-h-11 justify-center sm:min-h-0 sm:justify-start';
 
 /* ----------------------------------------------------------------- pieces */
 
@@ -203,12 +222,29 @@ function Crumbs({
 
   const focusRing = light ? 'focus-visible:ring-ring' : 'focus-visible:ring-white/60';
   const hoverText = light ? 'hover:text-foreground' : 'hover:text-white';
+  // Phones get one "back to parent" link instead of the whole trail.
+  const parent = [...items.slice(0, -1)].reverse().find((crumb) => crumb.href) ?? {
+    label: 'Home',
+    href: '/',
+  };
 
   return (
-    <nav aria-label="Breadcrumb" className={cn('hero-rise mb-5 sm:mb-6', className)}>
+    <nav aria-label="Breadcrumb" className={cn('hero-rise mb-4 sm:mb-6', className)}>
+      <Link
+        href={parent.href!}
+        className={cn(
+          '-ml-1 inline-flex min-h-9 items-center gap-1 rounded-md px-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 sm:hidden',
+          light ? 'text-muted-foreground' : 'text-white/70',
+          hoverText,
+          focusRing,
+        )}
+      >
+        <ChevronLeft aria-hidden className="h-4 w-4" />
+        {parent.label}
+      </Link>
       <ol
         className={cn(
-          'flex flex-wrap items-center gap-1.5 text-xs font-semibold',
+          'hidden flex-wrap items-center gap-1.5 text-xs font-semibold sm:flex',
           light ? 'text-muted-foreground' : 'text-white/65',
           centered && 'justify-center',
         )}
@@ -292,6 +328,61 @@ function TextLink({
 }
 
 /**
+ * Phone-only figure strip. Every layout places its figures somewhere different
+ * on a wide screen — a side column, a floating card, a 3D stage — and none of
+ * those survive being stacked under the copy on a phone. This gives all six
+ * layouts the same tidy row of up to three tiles instead.
+ */
+function MobileFacts({
+  highlights,
+  light,
+  palette,
+  className,
+}: {
+  highlights: PageHeroHighlight[];
+  light: boolean;
+  palette: TonePalette;
+  className?: string;
+}) {
+  if (!highlights.length) return null;
+  const items = highlights.slice(0, 3);
+
+  return (
+    <dl
+      className={cn(
+        'hero-rise hero-rise-2 mt-7 grid overflow-hidden rounded-2xl border',
+        items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1',
+        light
+          ? 'divide-x divide-border border-border bg-card shadow-sm'
+          : 'divide-x divide-white/10 border-white/15 bg-white/[0.07] backdrop-blur-md',
+        className,
+      )}
+    >
+      {items.map(({ label, value }) => (
+        <div key={label} className="flex min-w-0 flex-col px-3 py-3">
+          <dd
+            className={cn(
+              'tabular truncate text-lg font-extrabold leading-tight',
+              light ? 'text-foreground' : palette.accent,
+            )}
+          >
+            {value}
+          </dd>
+          <dt
+            className={cn(
+              'mt-1 line-clamp-3 text-[11px] leading-snug',
+              light ? 'text-muted-foreground' : 'text-white/65',
+            )}
+          >
+            {label}
+          </dt>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
  * The hero photograph. Always the LCP element on the page, so it loads with
  * priority; `sizes` tells next/image which width each layout actually shows.
  */
@@ -343,14 +434,14 @@ function AuroraHero({
         </div>
       ) : null}
 
-      <div className={cn('container relative z-10 pb-14 sm:pb-20 lg:pb-24', TOP)}>
+      <div className={cn('container relative z-10', BOTTOM, TOP)}>
         <Crumbs items={crumbs} light={false} />
 
         <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-14">
           <div className="hero-rise hero-rise-1 min-w-0 lg:col-span-7">
             <div className="flex items-center gap-3">
               {LeadIcon ? (
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur sm:h-11 sm:w-11">
                   <LeadIcon className="h-5 w-5" />
                 </span>
               ) : null}
@@ -360,20 +451,21 @@ function AuroraHero({
               </span>
             </div>
 
-            <h1 className="[overflow-wrap:anywhere] mt-5 text-[2.25rem] font-extrabold leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-[3.75rem]">
+            <h1 className="[overflow-wrap:anywhere] mt-4 text-balance text-[2rem] font-extrabold leading-[1.08] tracking-tight text-white min-[400px]:text-[2.25rem] sm:mt-5 sm:text-5xl sm:leading-[1.04] lg:text-[3.75rem]">
               {title}
               {accent ? <span className={cn('block', palette.accent)}>{accent}</span> : null}
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              {lead}
-            </p>
+            <p className={cn('mt-4 max-w-xl text-white/80 sm:mt-5', LEAD)}>{lead}</p>
 
-            <div className="hero-rise hero-rise-3 mt-8 flex flex-wrap items-center gap-x-7 gap-y-4">
+            <div className={cn('hero-rise hero-rise-3 mt-7 sm:mt-8', CTA_ROW)}>
               {primaryCta ? (
                 <Link
                   href={primaryCta.href}
-                  className="group inline-flex items-center gap-3 rounded-xl bg-success py-2 pl-5 pr-2 text-sm font-bold text-white shadow-lg shadow-success/30 transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className={cn(
+                    'group inline-flex items-center gap-3 rounded-xl bg-success py-2 pl-5 pr-2 text-sm font-bold text-white shadow-lg shadow-success/30 transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                    'w-full justify-between sm:w-auto sm:justify-start',
+                  )}
                 >
                   {primaryCta.label}
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 transition-transform group-hover:translate-x-0.5">
@@ -382,19 +474,25 @@ function AuroraHero({
                 </Link>
               ) : null}
               {secondaryCta ? (
-                <TextLink action={secondaryCta} className="text-white/90 hover:text-white" />
+                <TextLink
+                  action={secondaryCta}
+                  className={cn('text-white/90 hover:text-white', CTA_SECONDARY)}
+                />
               ) : null}
             </div>
+
+            <MobileFacts highlights={highlights} light={false} palette={palette} className="lg:hidden" />
           </div>
 
-          <div className="hero-rise hero-rise-2 min-w-0 lg:col-span-5">
+          {/* Desktop only: on a phone the panel would push the page's content off the first screen. */}
+          <div className="hero-rise hero-rise-2 hidden min-w-0 lg:col-span-5 lg:block">
             {spotlight ? (
               <GlassPanel spotlight={spotlight} highlights={highlights} palette={palette} />
             ) : highlights.length ? (
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-1 lg:gap-y-0 lg:divide-y lg:divide-white/15 lg:border-l lg:border-white/15 lg:pl-10">
+              <dl className="divide-y divide-white/15 border-l border-white/15 pl-10">
                 {highlights.map(({ label, value }) => (
-                  <div key={label} className={cn('border-l-2 pl-4 lg:border-l-0 lg:py-5 lg:pl-0', palette.accentBorder)}>
-                    <dd className="tabular text-3xl font-extrabold text-white lg:text-4xl">{value}</dd>
+                  <div key={label} className="py-5">
+                    <dd className="tabular text-4xl font-extrabold text-white">{value}</dd>
                     <dt className="mt-1 text-sm text-white/70">{label}</dt>
                   </div>
                 ))}
@@ -480,35 +578,33 @@ function CenteredHero({
         </div>
       ) : null}
 
-      <div className={cn('container relative z-10 pb-16 text-center sm:pb-24 lg:pb-28', TOP)}>
-        <Crumbs items={crumbs} light={false} centered className="mb-8 sm:mb-12" />
+      <div className={cn('container relative z-10 pb-10 text-center sm:pb-24 lg:pb-28', TOP)}>
+        <Crumbs items={crumbs} light={false} centered className="mb-5 text-left sm:mb-12 sm:text-center" />
 
         <div className="hero-rise hero-rise-1 mx-auto flex max-w-4xl flex-col items-center">
           {LeadIcon ? (
-            <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-white/25 text-white">
-              <LeadIcon className="h-6 w-6" />
+            <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white sm:mb-5 sm:h-14 sm:w-14">
+              <LeadIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </span>
           ) : null}
 
-          <p className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.32em] text-white/75">
-            <span aria-hidden className={cn('h-px w-8 sm:w-12', palette.accentBg)} />
+          <p className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.28em] text-white/75 sm:tracking-[0.32em]">
+            <span aria-hidden className={cn('h-px w-6 sm:w-12', palette.accentBg)} />
             {eyebrow}
-            <span aria-hidden className={cn('h-px w-8 sm:w-12', palette.accentBg)} />
+            <span aria-hidden className={cn('h-px w-6 sm:w-12', palette.accentBg)} />
           </p>
 
-          <h1 className="[overflow-wrap:anywhere] mt-6 font-display text-[2.6rem] font-semibold leading-[1.02] text-white sm:text-6xl lg:text-7xl">
+          <h1 className="[overflow-wrap:anywhere] mt-4 text-balance font-display text-[2.15rem] font-semibold leading-[1.06] text-white min-[400px]:text-[2.4rem] sm:mt-6 sm:text-6xl sm:leading-[1.02] lg:text-7xl">
             {title}
             {accent ? (
               <em className={cn('block font-medium italic', palette.accent)}>{accent}</em>
             ) : null}
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
-            {lead}
-          </p>
+          <p className={cn('mt-4 max-w-2xl text-white/80 sm:mt-6', LEAD)}>{lead}</p>
 
           {highlights.length ? (
-            <p className="mt-7 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-2 text-sm text-white/70">
+            <p className="mt-7 hidden flex-wrap items-baseline justify-center gap-x-2 gap-y-2 text-sm text-white/70 sm:flex">
               {highlights.slice(0, 3).map(({ label, value }, index) => (
                 <span key={label} className="inline-flex items-baseline gap-2">
                   {index > 0 ? <span aria-hidden className="mx-2 text-white/30">◆</span> : null}
@@ -520,11 +616,14 @@ function CenteredHero({
           ) : null}
         </div>
 
-        <div className="hero-rise hero-rise-3 mt-9 flex flex-col items-center gap-4">
+        <div className="hero-rise hero-rise-3 mx-auto mt-7 flex max-w-sm flex-col items-stretch gap-2 sm:mt-9 sm:max-w-none sm:items-center sm:gap-4">
           {primaryCta ? (
             <Link
               href={primaryCta.href}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-bold text-primary shadow-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-bold text-primary shadow-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                CTA_PRIMARY,
+              )}
             >
               {primaryCta.label}
               <ArrowRight className="h-4 w-4" />
@@ -534,10 +633,17 @@ function CenteredHero({
             <TextLink
               action={secondaryCta}
               arrow="none"
-              className="font-medium text-white/75 underline hover:text-white"
+              className={cn('font-medium text-white/75 underline hover:text-white', CTA_SECONDARY)}
             />
           ) : null}
         </div>
+
+        <MobileFacts
+          highlights={highlights}
+          light={false}
+          palette={palette}
+          className="mx-auto max-w-sm text-left sm:hidden"
+        />
       </div>
     </>
   );
@@ -572,13 +678,13 @@ function EditorialHero({
   return (
     <>
       <div aria-hidden className="pointer-events-none absolute inset-0 hero-paper" />
-      <div className={cn('container relative z-10 pb-14 sm:pb-20', TOP)}>
+      <div className={cn('container relative z-10 pb-10 sm:pb-20', TOP)}>
         <Crumbs items={crumbs} light />
 
         {/* Masthead rule. */}
         <div className="hero-rise flex items-center gap-3 border-b-2 border-foreground pb-2.5">
           <EyebrowIcon className={cn('h-4 w-4', palette.accent)} />
-          <span className="text-[11px] font-black uppercase tracking-[0.25em] text-foreground">
+          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-foreground sm:tracking-[0.25em]">
             {eyebrow}
           </span>
           <span className="ml-auto hidden text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:block">
@@ -586,21 +692,29 @@ function EditorialHero({
           </span>
         </div>
 
-        <div className={cn('mt-8 grid gap-10 sm:mt-10', hasAside && 'lg:grid-cols-12 lg:gap-14')}>
+        <div className={cn('mt-6 grid gap-8 sm:mt-10 sm:gap-10', hasAside && 'lg:grid-cols-12 lg:gap-14')}>
           <div className={cn('hero-rise hero-rise-1 min-w-0', hasAside ? 'lg:col-span-7' : 'max-w-3xl')}>
-            <h1 className="[overflow-wrap:anywhere] font-serif text-[2.5rem] font-semibold leading-[1.02] tracking-tight text-foreground sm:text-6xl lg:text-[4.25rem]">
+            <h1 className="[overflow-wrap:anywhere] text-balance font-serif text-[2.25rem] font-semibold leading-[1.05] tracking-tight text-foreground min-[400px]:text-[2.5rem] sm:text-6xl sm:leading-[1.02] lg:text-[4.25rem]">
               {title}
               {accent ? (
                 <em className={cn('font-normal italic', palette.accent)}> {accent}</em>
               ) : null}
             </h1>
 
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground first-letter:float-left first-letter:mr-2.5 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.6rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-foreground sm:text-lg">
+            {/* Drop cap only where the column is wide enough for it to read as a choice. */}
+            <p
+              className={cn(
+                'mt-4 max-w-xl text-muted-foreground sm:mt-6 sm:first-letter:float-left sm:first-letter:mr-2.5 sm:first-letter:mt-1 sm:first-letter:font-serif sm:first-letter:text-[3.6rem] sm:first-letter:font-semibold sm:first-letter:leading-[0.8] sm:first-letter:text-foreground',
+                LEAD,
+              )}
+            >
               {lead}
             </p>
 
+            <MobileFacts highlights={highlights} light palette={palette} className="mt-6 sm:hidden" />
+
             {highlights.length ? (
-              <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-dashed pt-5 sm:flex sm:flex-wrap sm:gap-x-10">
+              <dl className="mt-8 hidden flex-wrap gap-x-10 gap-y-5 border-t border-dashed pt-5 sm:flex">
                 {highlights.map(({ label, value }) => (
                   <div key={label}>
                     <dd className="tabular font-serif text-2xl font-semibold text-foreground">
@@ -614,24 +728,31 @@ function EditorialHero({
               </dl>
             ) : null}
 
-            <div className="hero-rise hero-rise-3 mt-8 flex flex-wrap items-center gap-x-7 gap-y-4">
+            <div className={cn('hero-rise hero-rise-3 mt-7 sm:mt-8', CTA_ROW)}>
               {primaryCta ? (
                 <Link
                   href={primaryCta.href}
-                  className="inline-flex items-center gap-2 bg-foreground px-6 py-3.5 text-sm font-bold text-background transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className={cn(
+                    'inline-flex items-center gap-2 bg-foreground px-6 py-3.5 text-sm font-bold text-background transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    CTA_PRIMARY,
+                  )}
                 >
                   {primaryCta.label}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : null}
               {secondaryCta ? (
-                <TextLink action={secondaryCta} arrow="up" className="text-foreground underline" />
+                <TextLink
+                  action={secondaryCta}
+                  arrow="up"
+                  className={cn('text-foreground underline', CTA_SECONDARY)}
+                />
               ) : null}
             </div>
           </div>
 
           {hasAside ? (
-            <aside className="hero-rise hero-rise-2 min-w-0 lg:col-span-5">
+            <aside className={cn('hero-rise hero-rise-2 min-w-0 lg:col-span-5', !image && 'hidden lg:block')}>
               {image ? (
                 <figure className="mr-3 sm:mr-4">
                   <div className="relative">
@@ -639,27 +760,27 @@ function EditorialHero({
                     <div
                       aria-hidden
                       className={cn(
-                        'absolute -bottom-3 -right-3 left-6 top-6 sm:-bottom-4 sm:-right-4',
+                        'absolute -bottom-2.5 -right-2.5 left-6 top-6 sm:-bottom-4 sm:-right-4',
                         FRAME_TINT[tone],
                       )}
                     />
                     <div
                       className={cn(
-                        'relative overflow-hidden border-[6px] border-card bg-muted shadow-lift',
-                        spotlight ? 'aspect-[16/9]' : 'aspect-[4/3] lg:aspect-[4/5]',
+                        'relative aspect-[16/9] overflow-hidden border-4 border-card bg-muted shadow-lift sm:border-[6px]',
+                        !spotlight && 'sm:aspect-[4/3] lg:aspect-[4/5]',
                       )}
                     >
                       <HeroPhoto image={image} sizes="(min-width: 1024px) 480px, 100vw" />
                     </div>
                   </div>
-                  <figcaption className="mt-6 font-serif text-xs italic text-muted-foreground">
+                  <figcaption className="mt-6 hidden font-serif text-xs italic text-muted-foreground sm:block">
                     {image.alt}
                   </figcaption>
                 </figure>
               ) : null}
 
               {spotlight ? (
-                <div className={cn('border-l-2 pl-5', palette.accentBorder, image && 'mt-7')}>
+                <div className={cn('hidden border-l-2 pl-5 lg:block', palette.accentBorder, image && 'mt-7')}>
                   <p className="font-serif text-lg font-semibold italic text-foreground">
                     {spotlight.title}
                   </p>
@@ -745,7 +866,7 @@ function SignalHero({
         <div aria-hidden className="relative z-10 h-1 bg-gradient-to-r from-destructive via-warm to-transparent" />
       )}
 
-      <div className={cn('container relative z-10 pb-14 sm:pb-20 lg:pb-24', TOP)}>
+      <div className={cn('container relative z-10', BOTTOM, TOP)}>
         <Crumbs items={crumbs} light={false} />
 
         <div className={cn('grid gap-10', spotlight && 'lg:grid-cols-12 lg:gap-14')}>
@@ -755,20 +876,23 @@ function SignalHero({
               {eyebrow}
             </span>
 
-            <h1 className="[overflow-wrap:anywhere] mt-5 font-grotesk text-[2.4rem] font-bold uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-[4.5rem]">
+            <h1 className="[overflow-wrap:anywhere] mt-4 text-balance font-grotesk text-[2.1rem] font-bold uppercase leading-[0.98] tracking-tight text-white min-[400px]:text-[2.4rem] sm:mt-5 sm:text-6xl sm:leading-[0.95] lg:text-[4.5rem]">
               {title}
               {accent ? <span className={cn('block', palette.accent)}>{accent}</span> : null}
             </h1>
 
-            <p className="mt-6 max-w-xl border-l-2 border-destructive pl-4 text-base leading-relaxed text-white/75 sm:text-lg">
+            <p className={cn('mt-5 max-w-xl border-l-2 border-destructive pl-4 text-white/75 sm:mt-6', LEAD)}>
               {lead}
             </p>
 
-            <div className="hero-rise hero-rise-3 mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+            <div className={cn('hero-rise hero-rise-3 mt-7 sm:mt-8', CTA_ROW)}>
               {primaryCta ? (
                 <Link
                   href={primaryCta.href}
-                  className="inline-flex items-center gap-3 bg-warm px-6 py-4 font-grotesk text-sm font-bold uppercase tracking-wider text-[#1a1000] transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className={cn(
+                    'inline-flex items-center gap-3 bg-warm px-6 py-4 font-grotesk text-sm font-bold uppercase tracking-wider text-[#1a1000] transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                    CTA_PRIMARY,
+                  )}
                 >
                   {primaryCta.label}
                   <ArrowRight className="h-4 w-4" />
@@ -777,7 +901,10 @@ function SignalHero({
               {secondaryCta ? (
                 <Link
                   href={secondaryCta.href}
-                  className="rounded-sm font-grotesk text-xs font-bold uppercase tracking-[0.2em] text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className={cn(
+                    'inline-flex items-center rounded-sm font-grotesk text-xs font-bold uppercase tracking-[0.2em] text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                    CTA_SECONDARY,
+                  )}
                 >
                   [ {secondaryCta.label} ]
                 </Link>
@@ -785,8 +912,9 @@ function SignalHero({
             </div>
           </div>
 
+          {/* Desktop only: on a phone the status board would push the page's content off the first screen. */}
           {spotlight ? (
-            <div className="hero-rise hero-rise-2 lg:col-span-5 lg:self-center">
+            <div className="hero-rise hero-rise-2 hidden lg:col-span-5 lg:block lg:self-center">
               <div className="border border-white/15 bg-black/45 backdrop-blur-md">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-3 font-grotesk text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">
                   <span>{spotlight.title}</span>
@@ -838,7 +966,7 @@ function SplitHero({
 
   return (
     <div className="relative lg:min-h-[34rem]">
-      <div className={cn('container relative z-10 pb-10 sm:pb-14 lg:pb-20', TOP)}>
+      <div className={cn('container relative z-10 pb-8 sm:pb-14 lg:pb-20', TOP)}>
         <div className={cn(image && 'lg:w-1/2 lg:pr-14')}>
           <Crumbs items={crumbs} light />
 
@@ -848,7 +976,7 @@ function SplitHero({
               {eyebrow}
             </span>
 
-            <h1 className="[overflow-wrap:anywhere] mt-5 font-sora text-[2.1rem] font-semibold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-[3.3rem]">
+            <h1 className="[overflow-wrap:anywhere] mt-4 text-balance font-sora text-[1.95rem] font-semibold leading-[1.14] tracking-tight text-foreground min-[400px]:text-[2.1rem] sm:mt-5 sm:text-5xl sm:leading-[1.12] lg:text-[3.3rem]">
               {title}{' '}
               {accent ? (
                 <span className="relative inline-block">
@@ -865,16 +993,17 @@ function SplitHero({
               ) : null}
             </h1>
 
-            <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-              {lead}
-            </p>
+            <p className={cn('mt-4 max-w-lg text-muted-foreground sm:mt-6', LEAD)}>{lead}</p>
           </div>
 
-          <div className="hero-rise hero-rise-3 mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className={cn('hero-rise hero-rise-3 mt-7 sm:mt-8', CTA_ROW)}>
             {primaryCta ? (
               <Link
                 href={primaryCta.href}
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-lift transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-lift transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  CTA_PRIMARY,
+                )}
               >
                 {primaryCta.label}
               </Link>
@@ -882,7 +1011,7 @@ function SplitHero({
             {secondaryCta ? (
               <Link
                 href={secondaryCta.href}
-                className="group inline-flex items-center gap-3 rounded-full text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group inline-flex items-center justify-center gap-3 rounded-full text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:justify-start"
               >
                 <span
                   className={cn(
@@ -899,20 +1028,11 @@ function SplitHero({
             ) : null}
           </div>
 
-          {/* Phones: figures as a swipeable chip row (the floating card needs the desktop photo). */}
-          {highlights.length ? (
-            <div className="-mx-4 mt-8 flex snap-x gap-3 overflow-x-auto px-4 pb-1 lg:hidden">
-              {highlights.map(({ label, value }) => (
-                <div key={label} className="min-w-[9.5rem] snap-start rounded-2xl bg-secondary px-4 py-3">
-                  <p className="tabular font-sora text-lg font-semibold text-foreground">{value}</p>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          {/* Below `lg` the floating figure card has no desktop photo to sit on. */}
+          <MobileFacts highlights={highlights} light palette={palette} className="lg:hidden" />
 
           {spotlight ? (
-            <ul className="mt-8 space-y-2">
+            <ul className="mt-8 hidden space-y-2 sm:block">
               {spotlight.items.map(({ title: itemTitle, icon: Icon }) => (
                 <li key={itemTitle} className="flex items-center gap-3 text-sm font-medium text-foreground">
                   <Icon className={cn('h-4 w-4', palette.accent)} />
@@ -925,7 +1045,7 @@ function SplitHero({
       </div>
 
       {image ? (
-        <div className="hero-split-photo relative mx-4 mb-10 h-60 overflow-hidden rounded-3xl sm:mx-6 sm:h-80 lg:absolute lg:inset-y-0 lg:right-0 lg:m-0 lg:h-auto lg:w-1/2 lg:rounded-none">
+        <div className="hero-split-photo relative mx-4 mb-8 aspect-[16/9] overflow-hidden rounded-2xl sm:mx-6 sm:mb-10 sm:aspect-auto sm:h-80 sm:rounded-3xl lg:absolute lg:inset-y-0 lg:right-0 lg:m-0 lg:h-auto lg:w-1/2 lg:rounded-none">
           <HeroPhoto image={image} sizes="(min-width: 1024px) 50vw, 100vw" />
 
           {highlights.length ? (
@@ -963,12 +1083,12 @@ const DEPTH_FONTS: Record<PageHeroDepthFont, { family: string; headline: string 
   syne: {
     family: 'font-syne',
     headline:
-      'uppercase text-[1.8rem] leading-[1] min-[400px]:text-[2.1rem] sm:text-[3.4rem] lg:text-[3.6rem]',
+      'uppercase text-[1.75rem] leading-[1.02] min-[400px]:text-[2.1rem] sm:text-[3.4rem] sm:leading-[1] lg:text-[3.6rem]',
   },
   bricolage: {
     family: 'font-bricolage',
     headline:
-      'text-[2.6rem] leading-[0.95] tracking-[-0.03em] min-[400px]:text-[2.9rem] sm:text-[4rem] lg:text-[4.6rem]',
+      'text-[2.35rem] leading-[0.98] tracking-[-0.03em] min-[400px]:text-[2.7rem] sm:text-[4rem] sm:leading-[0.95] lg:text-[4.6rem]',
   },
 };
 
@@ -1001,7 +1121,7 @@ function DepthHero({
         <div className="absolute -right-10 bottom-0 h-80 w-80 rounded-full bg-accent/30 blur-3xl" />
       </div>
 
-      <div className={cn('container relative z-10 pb-14 sm:pb-20 lg:pb-24', TOP)}>
+      <div className={cn('container relative z-10', BOTTOM, TOP)}>
         <Crumbs items={crumbs} light={false} />
 
         <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
@@ -1013,7 +1133,7 @@ function DepthHero({
 
             <h1
               className={cn(
-                'hero-3d-text mt-6 font-extrabold tracking-tight text-white [overflow-wrap:anywhere]',
+                'hero-3d-text mt-5 text-balance font-extrabold tracking-tight text-white [overflow-wrap:anywhere] sm:mt-6',
                 font.family,
                 font.headline,
               )}
@@ -1022,15 +1142,16 @@ function DepthHero({
               {accent ? <span className={cn('block', palette.accent)}>{accent}</span> : null}
             </h1>
 
-            <p className="mt-6 max-w-lg text-base leading-relaxed text-white/80 sm:text-lg">{lead}</p>
+            <p className={cn('mt-5 max-w-lg text-white/80 sm:mt-6', LEAD)}>{lead}</p>
 
-            <div className="hero-rise hero-rise-3 mt-9 flex flex-wrap items-center gap-x-7 gap-y-5">
+            <div className={cn('hero-rise hero-rise-3 mt-7 sm:mt-9', CTA_ROW)}>
               {primaryCta ? (
                 <Link
                   href={primaryCta.href}
                   className={cn(
                     'btn-3d inline-flex items-center gap-2 rounded-2xl bg-success px-7 py-4 text-sm font-bold uppercase tracking-wide text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
                     font.family,
+                    CTA_PRIMARY,
                   )}
                 >
                   {primaryCta.label}
@@ -1038,13 +1159,18 @@ function DepthHero({
                 </Link>
               ) : null}
               {secondaryCta ? (
-                <TextLink action={secondaryCta} className="text-white/85 hover:text-white" />
+                <TextLink
+                  action={secondaryCta}
+                  className={cn('text-white/85 hover:text-white', CTA_SECONDARY)}
+                />
               ) : null}
             </div>
+
+            <MobileFacts highlights={highlights} light={false} palette={palette} className="lg:hidden" />
           </div>
 
-          {/* The 3D stage. */}
-          <div className="hero-rise hero-rise-2 min-w-0 lg:col-span-6">
+          {/* The 3D stage. Desktop only: tilted cards at phone width read as clutter, not depth. */}
+          <div className="hero-rise hero-rise-2 hidden min-w-0 lg:col-span-6 lg:block">
             <div className="hero-stage relative mx-auto h-[21rem] w-full max-w-[26rem] sm:h-[25rem]">
               <div className="hero-stage-inner absolute inset-0">
                 {image ? (

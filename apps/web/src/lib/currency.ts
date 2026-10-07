@@ -6,16 +6,70 @@ export interface CurrencyMeta {
   presets: number[];
 }
 
+/**
+ * The only two currencies a campaign can raise in. Mirrors
+ * `SUPPORTED_CURRENCIES` in apps/api/src/common/supported-markets.ts, which is
+ * what actually enforces it — this list only keeps the UI from offering
+ * something the API would reject.
+ */
 export const CURRENCIES: CurrencyMeta[] = [
   { code: 'USD', label: 'US Dollar', symbol: '$', presets: [25, 50, 100, 250] },
   { code: 'EUR', label: 'Euro', symbol: '€', presets: [25, 50, 100, 250] },
-  { code: 'GBP', label: 'British Pound', symbol: '£', presets: [20, 50, 100, 250] },
-  { code: 'UGX', label: 'Ugandan Shilling', symbol: 'USh', presets: [50000, 100000, 250000, 500000] },
-  { code: 'KES', label: 'Kenyan Shilling', symbol: 'KSh', presets: [2500, 5000, 10000, 25000] },
-  { code: 'NGN', label: 'Nigerian Naira', symbol: '₦', presets: [10000, 25000, 50000, 100000] },
-  { code: 'CAD', label: 'Canadian Dollar', symbol: 'C$', presets: [25, 50, 100, 250] },
-  { code: 'AUD', label: 'Australian Dollar', symbol: 'A$', presets: [25, 50, 100, 250] },
 ];
+
+export interface CountryMeta {
+  /** ISO 3166-1 alpha-2. */
+  code: string;
+  name: string;
+  currency: string;
+}
+
+/**
+ * Supported payout markets: the countries whose official currency is the US
+ * dollar or the euro. Nothing else is offered.
+ */
+export const COUNTRIES: CountryMeta[] = [
+  { code: 'US', name: 'United States', currency: 'USD' },
+  { code: 'EC', name: 'Ecuador', currency: 'USD' },
+  { code: 'SV', name: 'El Salvador', currency: 'USD' },
+  { code: 'PA', name: 'Panama', currency: 'USD' },
+  { code: 'PR', name: 'Puerto Rico', currency: 'USD' },
+  { code: 'TL', name: 'Timor-Leste', currency: 'USD' },
+  { code: 'MH', name: 'Marshall Islands', currency: 'USD' },
+  { code: 'FM', name: 'Micronesia', currency: 'USD' },
+  { code: 'PW', name: 'Palau', currency: 'USD' },
+  { code: 'AT', name: 'Austria', currency: 'EUR' },
+  { code: 'BE', name: 'Belgium', currency: 'EUR' },
+  { code: 'HR', name: 'Croatia', currency: 'EUR' },
+  { code: 'CY', name: 'Cyprus', currency: 'EUR' },
+  { code: 'EE', name: 'Estonia', currency: 'EUR' },
+  { code: 'FI', name: 'Finland', currency: 'EUR' },
+  { code: 'FR', name: 'France', currency: 'EUR' },
+  { code: 'DE', name: 'Germany', currency: 'EUR' },
+  { code: 'GR', name: 'Greece', currency: 'EUR' },
+  { code: 'IE', name: 'Ireland', currency: 'EUR' },
+  { code: 'IT', name: 'Italy', currency: 'EUR' },
+  { code: 'LV', name: 'Latvia', currency: 'EUR' },
+  { code: 'LT', name: 'Lithuania', currency: 'EUR' },
+  { code: 'LU', name: 'Luxembourg', currency: 'EUR' },
+  { code: 'MT', name: 'Malta', currency: 'EUR' },
+  { code: 'NL', name: 'Netherlands', currency: 'EUR' },
+  { code: 'PT', name: 'Portugal', currency: 'EUR' },
+  { code: 'SK', name: 'Slovakia', currency: 'EUR' },
+  { code: 'SI', name: 'Slovenia', currency: 'EUR' },
+  { code: 'ES', name: 'Spain', currency: 'EUR' },
+];
+
+const COUNTRY_BY_CODE = new Map(COUNTRIES.map((country) => [country.code, country]));
+
+export function countryMeta(code: string | undefined | null): CountryMeta | null {
+  if (!code) return null;
+  return COUNTRY_BY_CODE.get(code.trim().toUpperCase()) ?? null;
+}
+
+export function countryName(code: string | undefined | null): string {
+  return countryMeta(code)?.name ?? code?.toUpperCase() ?? '—';
+}
 
 const BY_CODE = new Map(CURRENCIES.map((c) => [c.code, c]));
 
@@ -23,8 +77,11 @@ export function currencyMeta(code: string | undefined | null): CurrencyMeta {
   return (code && BY_CODE.get(code.toUpperCase())) || CURRENCIES[0];
 }
 
-/** Currencies with no minor unit; a "cent" does not exist for these. */
-const ZERO_DECIMAL = new Set(['UGX', 'JPY', 'KRW', 'VND', 'RWF', 'XOF', 'XAF', 'CLP']);
+/**
+ * Currencies with no minor unit; a "cent" does not exist for these. USD and EUR
+ * both have two, so this only matters for legacy rows and imported data.
+ */
+const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'CLP']);
 
 export function fractionDigits(code: string): number {
   return ZERO_DECIMAL.has(code.toUpperCase()) ? 0 : 2;

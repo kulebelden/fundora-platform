@@ -4,7 +4,7 @@ import { MedicalHubClient } from './medical-client';
 export const metadata: Metadata = {
   title: 'Medical & Healthcare',
   description:
-    'Fund cancer treatment, surgeries, dental care, mental health programs, fertility treatments, chronic care, and clinical trials. 0% platform fee on medical causes.',
+    'Fund cancer treatment, surgeries, dental care, mental health programs, fertility treatments, chronic care, and clinical trials, with every fee shown up front.',
 };
 
 export default function MedicalPage() {

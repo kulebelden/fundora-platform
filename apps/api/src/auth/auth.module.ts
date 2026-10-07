@@ -11,7 +11,11 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PasswordService } from './password.service';
+import { OAuthService } from './oauth.service';
 import { RefreshToken } from './refresh-token.entity';
+import { EmailVerificationToken } from './email-verification-token.entity';
+import { UserIdentity } from './user-identity.entity';
+import { MailModule } from '../mail/mail.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -28,11 +32,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         },
       }),
     }),
-    TypeOrmModule.forFeature([User, UserProfile, RefreshToken]),
+    TypeOrmModule.forFeature([User, UserProfile, RefreshToken, UserIdentity, EmailVerificationToken]),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
+    OAuthService,
     PasswordService,
     JwtStrategy,
     JwtAuthGuard,

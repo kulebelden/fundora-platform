@@ -4,21 +4,31 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
+  Param,
   Post,
+  Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { Response, CookieOptions, Request } from 'express';
+import { UserRole } from '../common/enums';
 import { EnvironmentVariables } from '../config/env.validation';
+import { OAuthService, isOAuthProvider } from './oauth.service';
+import type { OAuthProvider } from './user-identity.entity';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResponse } from './interfaces/auth-response';
 import { AuthenticatedRequest } from './interfaces/authenticated-request';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AuthService } from './auth.service';
+import { AuthService, VerificationPending } from './auth.service';
+import { ResendVerificationDto, VerifyEmailDto } from './dto/email-verification.dto';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
@@ -28,23 +38,68 @@ type CookieRequest = Request & {
   cookies?: Record<string, string>;
 };
 
+/** Short-lived cookie holding one sign-in attempt's state, nonce and return path. */
+const OAUTH_FLOW_COOKIE = 'hn_oauth_flow';
+const OAUTH_FLOW_AUDIENCE = 'hopenest-oauth-flow';
+
+interface OAuthFlow {
+  provider: OAuthProvider;
+  state: string;
+  nonce: string;
+  next: string | null;
+}
+
+/** Staff roles that land on /admin after signing in. Mirrors ADMIN_ROLES in the web app. */
+const STAFF_ROLES: readonly UserRole[] = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ADMIN,
+  UserRole.MODERATOR,
+  UserRole.FINANCE_OFFICER,
+];
+
+/** Same-origin paths only, so a crafted `?next=` cannot send a new session off-site. */
+function safeNextPath(next: string | undefined): string | null {
+  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\')
+    ? next
+    : null;
+}
+
 @Controller('api/v1/auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
+    private readonly oauthService: OAuthService,
+    private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvironmentVariables, true>,
   ) {}
 
+  /** Creates the account and emails a verification link; no session until it is opened. */
   @Post('register')
   @HttpCode(201)
-  async register(
-    @Body() dto: RegisterDto,
+  register(@Body() dto: RegisterDto): Promise<VerificationPending> {
+    return this.authService.register(dto);
+  }
+
+  /** Opens the emailed link: verifies the address and signs the person in. */
+  @Post('verify-email')
+  @HttpCode(200)
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
-    const response = await this.authService.register(dto);
+    const response = await this.authService.verifyEmail(dto.token);
     this.setAuthCookies(res, response);
-
     return response;
+  }
+
+  /** Always 200, whether or not the address has an account. */
+  @Post('resend-verification')
+  @HttpCode(200)
+  async resendVerification(@Body() dto: ResendVerificationDto): Promise<{ message: string }> {
+    await this.authService.resendVerification(dto.email);
+    return { message: 'If that address has an unverified account, a new link is on its way.' };
   }
 
   @Post('login')
@@ -109,6 +164,117 @@ export class AuthController {
   @HttpCode(200)
   me(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
     return req.user;
+  }
+
+  /** Which social sign-in buttons the web app should enable. */
+  @Get('oauth/providers')
+  oauthProviders(): Record<OAuthProvider, boolean> {
+    return this.oauthService.enabledProviders();
+  }
+
+  /**
+   * Sends the browser to the provider. `state` and `nonce` are kept in a short
+   * signed cookie so the callback can prove it answers a request we made.
+   */
+  @Get('oauth/:provider/start')
+  async oauthStart(
+    @Param('provider') provider: string,
+    @Query('next') next: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!isOAuthProvider(provider) || !this.oauthService.isEnabled(provider)) {
+      return res.redirect(303, '/login?oauth_error=unavailable');
+    }
+
+    const state = randomBytes(24).toString('base64url');
+    const nonce = randomBytes(24).toString('base64url');
+    const flow: OAuthFlow = { provider, state, nonce, next: safeNextPath(next) };
+    const token = await this.jwtService.signAsync(flow, {
+      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      audience: OAUTH_FLOW_AUDIENCE,
+      expiresIn: '10m',
+    });
+
+    res.cookie(OAUTH_FLOW_COOKIE, token, this.oauthCookieOptions(provider));
+    res.redirect(303, this.oauthService.authorizationUrl(provider, state, nonce));
+  }
+
+  @Get('oauth/google/callback')
+  async googleCallback(
+    @Query() query: Record<string, string | undefined>,
+    @Req() req: CookieRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.finishOAuth('google', query, req, res);
+  }
+
+  /** Apple posts its answer as a form because we ask for name and email. */
+  @Post('oauth/apple/callback')
+  async appleCallback(
+    @Body() body: Record<string, string | undefined>,
+    @Req() req: CookieRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.finishOAuth('apple', body, req, res);
+  }
+
+  private async finishOAuth(
+    provider: OAuthProvider,
+    params: Record<string, string | undefined>,
+    req: CookieRequest,
+    res: Response,
+  ): Promise<void> {
+    const fail = (reason: string) => res.redirect(303, `/login?oauth_error=${reason}`);
+    const flowToken = req.cookies?.[OAUTH_FLOW_COOKIE];
+    res.clearCookie(OAUTH_FLOW_COOKIE, this.oauthCookieOptions(provider));
+
+    // The person closed the consent screen or said no.
+    if (params.error) return fail('cancelled');
+    if (!flowToken || !params.code || !params.state) return fail('expired');
+
+    let flow: OAuthFlow;
+    try {
+      flow = await this.jwtService.verifyAsync<OAuthFlow>(flowToken, {
+        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        audience: OAUTH_FLOW_AUDIENCE,
+      });
+    } catch {
+      return fail('expired');
+    }
+
+    const stateMatches =
+      flow.provider === provider &&
+      flow.state.length === params.state.length &&
+      timingSafeEqual(Buffer.from(flow.state), Buffer.from(params.state));
+    if (!stateMatches) return fail('expired');
+
+    try {
+      const profile = await this.oauthService.exchangeCode(provider, params.code, flow.nonce, params.user);
+      const response = await this.authService.signInWithOAuth(profile);
+      this.setAuthCookies(res, response);
+      // Staff land on their console; everyone else on their campaigns, as with a password login.
+      const home = STAFF_ROLES.includes(response.user.role) ? '/admin' : '/dashboard/campaigns';
+      res.redirect(303, flow.next ?? home);
+    } catch (error) {
+      this.logger.warn(`${provider} sign-in failed: ${error instanceof Error ? error.message : String(error)}`);
+      fail(error instanceof UnauthorizedException ? 'unverified' : 'failed');
+    }
+  }
+
+  /**
+   * Apple returns with a cross-site POST, which drops `SameSite=Lax` cookies, so
+   * its flow cookie must be `None` (and therefore `Secure`; browsers accept
+   * that on http://localhost too).
+   */
+  private oauthCookieOptions(provider: OAuthProvider): CookieOptions {
+    return {
+      httpOnly: true,
+      path: '/api/v1/auth/oauth',
+      maxAge: 10 * 60 * 1000,
+      ...(provider === 'apple'
+        ? { sameSite: 'none', secure: true }
+        : { sameSite: 'lax', secure: this.config.get('NODE_ENV') === 'production' }),
+    };
   }
 
   private setAuthCookies(res: Response, response: AuthResponse): void {

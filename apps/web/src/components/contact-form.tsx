@@ -186,7 +186,7 @@ export function ContactForm() {
           id="contact-phone"
           type="tel"
           autoComplete="tel"
-          placeholder="+256 700 000000"
+          placeholder="+1 202 555 0143"
           aria-invalid={Boolean(errors.phone)}
           {...register('phone')}
         />

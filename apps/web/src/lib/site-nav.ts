@@ -125,7 +125,7 @@ export const SUPPORT_POINTS: SupportPoint[] = [
   { label: '24/7 priority support', icon: Clock },
   { label: 'Real people, never bots', icon: MessageCircle },
   { label: 'Replies in under 2 minutes', icon: Zap },
-  { label: 'Multi-currency, regional languages', icon: Languages },
+  { label: 'US dollar & euro support', icon: Languages },
 ];
 
 /**

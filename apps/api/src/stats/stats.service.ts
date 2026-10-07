@@ -111,6 +111,7 @@ export class StatsService {
              FROM "campaigns" c
              LEFT JOIN "payment_intents" pi
                ON pi."campaignId" = c."id" AND pi."status" = $1
+            WHERE c."deletedAt" IS NULL
             GROUP BY c."id", c."status", c."targetAmount"
            HAVING c."status" = $2
                OR COALESCE(SUM(pi."amount"), 0) >= c."targetAmount"
@@ -127,7 +128,7 @@ export class StatsService {
          FROM "user_profiles" up
         WHERE up."userId" IN (
                 SELECT c."creatorId" FROM "campaigns" c
-                 WHERE c."status"::text = ANY($1::text[])
+                 WHERE c."status"::text = ANY($1::text[]) AND c."deletedAt" IS NULL
                 UNION
                 SELECT pi."donorId" FROM "payment_intents" pi
                  WHERE pi."status" = $2 AND pi."donorId" IS NOT NULL

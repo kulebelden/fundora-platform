@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowRight, BadgeCheck, Calendar, Globe, HeartHandshake, Lightbulb, Megaphone, ShieldCheck, Wallet } from 'lucide-react';
 import { MarketingPage } from '@/components/marketing-page';
 import { DepthCard } from '@/components/depth-card';
+import { feeLabel, fetchPlatformFeeRate } from '@/lib/fees';
 import { HERO_IMAGES } from '@/lib/hero-images';
 
 export const metadata: Metadata = {
@@ -16,41 +17,46 @@ const IDEAS = [
     Icon: ShieldCheck,
     title: 'Emergency and disaster relief',
     body: 'A clear, time-bound ask with a line-by-line budget converts best in a crisis. Publish the exact items the money buys — tents, medication, fuel — and update the list as you fill it.',
-    goal: '£500 – £25,000',
+    goal: '$500 – $25,000',
   },
   {
     Icon: HeartHandshake,
     title: 'Medical and surgery',
     body: 'Name the procedure, the facility and the timeline. Attach the clinician\'s letter if you have one; it is the single most persuasive document a medical campaign can carry.',
-    goal: '£1,000 – £50,000',
+    goal: '$1,000 – $50,000',
   },
   {
     Icon: Megaphone,
     title: 'Education and skills',
     body: 'Fund a classroom, a lab or a scholarship. Learners make great update subjects — a photo of the first lesson is a donor\'s proof that the money moved.',
-    goal: '£500 – £10,000',
+    goal: '$500 – $10,000',
   },
   {
     Icon: Globe,
     title: 'Community and environment',
     body: 'Water, sanitation, tree-planting and local infrastructure. These campaigns win on transparency: show the before, show the after, and the community does the rest.',
-    goal: '£300 – £15,000',
+    goal: '$300 – $15,000',
   },
   {
     Icon: Wallet,
     title: 'Memorial giving',
     body: 'Raise in someone\'s name for a cause they cared about. Say plainly who receives the funds if you are raising on someone else\'s behalf — that honesty is what makes memorial campaigns trusted.',
-    goal: '£200 – £10,000',
+    goal: '$200 – $10,000',
   },
   {
     Icon: BadgeCheck,
     title: 'Charity and institutional fundraising',
-    body: 'Nonprofits, hospitals and schools can raise directly. Verification is the same, and charitable and medical causes pay no platform fee.',
+    body: 'Nonprofits, hospitals and schools can raise directly. Verification is the same, and so is the fee: one platform fee, shown before anything is confirmed.',
     goal: 'Any',
   },
 ];
 
-export default function FundraisingIdeasPage() {
+/** The platform fee is set by the super admin, so the page is rendered per request. */
+export const dynamic = 'force-dynamic';
+
+export default async function FundraisingIdeasPage() {
+  const fee = feeLabel(await fetchPlatformFeeRate());
+
   return (
     <MarketingPage
       image={HERO_IMAGES.ideas}
@@ -74,9 +80,9 @@ export default function FundraisingIdeasPage() {
         ],
       }}
       highlights={[
-        { value: '£200–£50k', label: 'Typical working goal range', icon: Wallet, tone: 'accent' },
+        { value: '$200–$50k', label: 'Typical working goal range', icon: Wallet, tone: 'accent' },
         { value: '6', label: 'Cause types with worked examples', icon: Lightbulb },
-        { value: '0%', label: 'Platform fee on medical and charity', icon: BadgeCheck, tone: 'success' },
+        { value: fee, label: 'Platform fee, the same for every cause', icon: BadgeCheck, tone: 'success' },
       ]}
       sections={[
         {

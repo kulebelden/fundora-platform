@@ -40,7 +40,7 @@ const TIPS = [
   {
     Icon: Sparkles,
     title: 'Match the goal to the audience',
-    body: 'A £50 goal converts cold traffic; a £5,000 goal needs a warm audience that already knows you. Pick a goal you can plausibly hit in the first two weeks, then extend rather than reset.',
+    body: 'A $50 goal converts cold traffic; a $5,000 goal needs a warm audience that already knows you. Pick a goal you can plausibly hit in the first two weeks, then extend rather than reset.',
   },
 ];
 

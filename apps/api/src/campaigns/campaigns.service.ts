@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CampaignStatus, TransactionStatus, UserRole } from '../common/enums';
 import {
   Campaign,
@@ -176,6 +176,46 @@ export class CampaignsService {
     return this.summaryFor(await this.load(campaignId));
   }
 
+  /**
+   * Super-admin delete. Archives rather than removes: the campaign's ledger
+   * entries are immutable and its donations stay part of the audit trail, so
+   * the row is kept with `deletedAt` set, which hides it from every read.
+   *
+   * Refused while the wallet still holds money (cleared, or mid-payout): the
+   * fundraiser could no longer reach it. Pay out or suspend instead.
+   */
+  async archive(campaignId: string, deletedById: string, reason: string): Promise<{ id: string; deletedAt: string }> {
+    return this.campaigns.manager.transaction(async (manager) => {
+      const campaign = await manager
+        .getRepository(Campaign)
+        .createQueryBuilder('campaign')
+        .leftJoinAndSelect('campaign.wallet', 'wallet')
+        .where('campaign.id = :campaignId', { campaignId })
+        .setLock('pessimistic_write', undefined, ['campaign'])
+        .getOne();
+
+      if (!campaign) {
+        throw new NotFoundException('Campaign not found');
+      }
+
+      const cleared = Number(campaign.wallet?.clearedBalance ?? 0);
+      const pending = Number(campaign.wallet?.pendingBalance ?? 0);
+      if (cleared > 0 || pending > 0) {
+        const held = (cleared + pending).toFixed(2);
+        throw new ConflictException(
+          `This campaign still holds ${held} ${campaign.currency}. Pay it out to the fundraiser or suspend the campaign instead.`,
+        );
+      }
+
+      const deletedAt = new Date();
+      await manager.getRepository(Campaign).update(
+        { id: campaign.id },
+        { deletedAt, deletedById, deletionReason: reason.trim() },
+      );
+      return { id: campaign.id, deletedAt: deletedAt.toISOString() };
+    });
+  }
+
   async findAllPublic(
     query: CampaignQueryDto,
   ): Promise<PaginatedCampaigns> {
@@ -183,17 +223,42 @@ export class CampaignsService {
     const limit = Math.max(1, query.limit);
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.campaigns.findAndCount({
-      where: {
-        status: In([CampaignStatus.LIVE, CampaignStatus.COMPLETED]),
-      },
-      skip,
-      take: limit,
-      relations: {
-        category: true,
-        creator: { profile: true },
-      },
+    // Only campaigns that can take donations. Completed, suspended and
+    // rejected ones (and archived ones, which TypeORM drops) stay off the
+    // home page, category hubs and search; their own links still work.
+    const builder = this.campaigns
+      .createQueryBuilder('campaign')
+      .leftJoinAndSelect('campaign.category', 'category')
+      .leftJoinAndSelect('campaign.creator', 'creator')
+      .leftJoinAndSelect('creator.profile', 'profile')
+      .where('campaign.status = :status', { status: CampaignStatus.LIVE });
+
+    if (query.category) {
+      builder.andWhere('category.slug = :category', { category: query.category });
+    }
+
+    // Every word must appear somewhere: title, story, category or organiser.
+    const words = searchWords(query.q);
+    words.forEach((word, index) => {
+      builder.andWhere(
+        `(campaign.title ILIKE :w${index} OR campaign.story ILIKE :w${index} OR category.name ILIKE :w${index}
+          OR profile.firstName ILIKE :w${index} OR profile.lastName ILIKE :w${index})`,
+        { [`w${index}`]: `%${escapeLike(word)}%` },
+      );
     });
+
+    if (words.length) {
+      // Title hits first: they are what the person most likely meant.
+      builder
+        .addSelect(`CASE WHEN campaign.title ILIKE :phrase THEN 0 ELSE 1 END`, 'title_rank')
+        .setParameter('phrase', `%${escapeLike(words.join(' '))}%`)
+        .orderBy('title_rank', 'ASC')
+        .addOrderBy('campaign.createdAt', 'DESC');
+    } else {
+      builder.orderBy('campaign.createdAt', 'DESC');
+    }
+
+    const [items, total] = await builder.skip(skip).take(limit).getManyAndCount();
 
     // One grouped query for the whole page rather than one per campaign.
     const aggregates = await this.aggregatesFor(items.map((c) => c.id));
@@ -487,4 +552,16 @@ export class CampaignsService {
       },
     };
   }
+}
+
+/** Up to five distinct words from a search box, each at most 50 characters. */
+function searchWords(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const words = raw.trim().toLowerCase().split(/\s+/).filter(Boolean).map((word) => word.slice(0, 50));
+  return [...new Set(words)].slice(0, 5);
+}
+
+/** Makes `%`, `_` and `\` in user input match literally inside ILIKE. */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }

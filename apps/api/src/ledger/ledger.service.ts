@@ -60,7 +60,10 @@ export class LedgerService {
     }
 
     const grossAmount = Number(paymentIntent.amount);
-    const platformFee = roundMinor(grossAmount * PLATFORM_FEE_RATE);
+    // The rate the donor was quoted; intents from before it was stored were quoted at the old fixed rate.
+    const feeRate =
+      paymentIntent.platformFeeRate === null ? PLATFORM_FEE_RATE : Number(paymentIntent.platformFeeRate);
+    const platformFee = roundMinor(grossAmount * feeRate);
     const processingFee = roundMinor(
       paymentIntent.channel === 'BANK_TRANSFER' ? 0 : grossAmount * CARD_PROCESSING_FEE_RATE,
     );

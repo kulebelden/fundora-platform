@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { LedgerService } from '../ledger/ledger.service';
+import { PlatformFeeChange } from '../ledger/platform-fee-change.entity';
+import { PlatformFeeService } from '../ledger/platform-fee.service';
 import { Campaign } from '../modules/campaigns/entities/campaign.entity';
 import { CampaignWallet } from '../modules/campaigns/entities/campaign-wallet.entity';
 import { LedgerAccount } from '../modules/ledger/entities/ledger-account.entity';
@@ -26,6 +28,7 @@ import { WebhooksController } from './webhooks.controller';
       LedgerTransaction,
       PaymentIntent,
       ProcessedWebhook,
+      PlatformFeeChange,
     ]),
   ],
   controllers: [PaymentsController, WebhooksController],
@@ -34,7 +37,8 @@ import { WebhooksController } from './webhooks.controller';
     BankWirePaymentAdapter,
     PaymentsService,
     LedgerService,
+    PlatformFeeService,
   ],
-  exports: [PaymentsService, LedgerService],
+  exports: [PaymentsService, LedgerService, PlatformFeeService],
 })
 export class PaymentsModule {}

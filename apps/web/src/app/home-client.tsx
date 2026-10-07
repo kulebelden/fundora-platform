@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { ArrowRight, HeartHandshake, ShieldCheck, Wallet } from 'lucide-react';
 import { CampaignCard, CampaignCardSkeleton } from '@/components/campaign-card';
 import { HeroSection } from '@/components/hero-section';
@@ -34,11 +33,9 @@ const HOW_IT_WORKS = [
   },
 ];
 
-export function HomeClient() {
-  const searchParams = useSearchParams();
-  const categoryParam = searchParams.get('category');
+/** `categoryParam` is `?category=`, read by the server page so the home page renders in the HTML. */
+export function HomeClient({ categoryParam }: { categoryParam: string | null }) {
 
-  const [query, setQuery] = React.useState('');
   const [activeCategory, setActiveCategory] = React.useState<string | null>(categoryParam);
 
   React.useEffect(() => {
@@ -56,24 +53,15 @@ export function HomeClient() {
     return Array.from(seen, ([slug, name]) => ({ slug, name }));
   }, [campaigns]);
 
-  const visible = React.useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return campaigns.filter((campaign) => {
-      const matchesCategory = !activeCategory || campaign.category?.slug === activeCategory;
-      const matchesQuery =
-        !needle ||
-        campaign.title.toLowerCase().includes(needle) ||
-        campaign.story.toLowerCase().includes(needle) ||
-        `${campaign.creator?.firstName} ${campaign.creator?.lastName}`
-          .toLowerCase()
-          .includes(needle);
-      return matchesCategory && matchesQuery;
-    });
-  }, [campaigns, activeCategory, query]);
+  // Text search lives in the header's site-wide search; this only filters by category.
+  const visible = React.useMemo(
+    () => campaigns.filter((campaign) => !activeCategory || campaign.category?.slug === activeCategory),
+    [campaigns, activeCategory],
+  );
 
   return (
     <>
-      <SiteHeader query={query} onQueryChange={setQuery} />
+      <SiteHeader />
 
       <main id="main">
         {/* ------------------------------------------------------------ hero */}
@@ -170,15 +158,12 @@ export function HomeClient() {
                 <>
                   <p className="font-semibold">No campaigns match that search.</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try a different term or clear the category filter.
+                    Try another category, or clear the filter.
                   </p>
                   <Button
                     variant="outline"
                     className="mt-5"
-                    onClick={() => {
-                      setQuery('');
-                      setActiveCategory(null);
-                    }}
+                    onClick={() => setActiveCategory(null)}
                   >
                     Clear filters
                   </Button>

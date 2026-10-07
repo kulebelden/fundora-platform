@@ -96,9 +96,9 @@ export class AdminService {
                 COUNT(*) FILTER (WHERE "createdAt" >= now() - interval '30 days') AS month
            FROM "users"`,
       ) as Promise<Array<{ week: string; month: string }>>,
-      this.db.query(`SELECT "status"::text AS key, COUNT(*) AS count FROM "campaigns" GROUP BY 1`) as Promise<CountRow[]>,
+      this.db.query(`SELECT "status"::text AS key, COUNT(*) AS count FROM "campaigns" WHERE "deletedAt" IS NULL GROUP BY 1`) as Promise<CountRow[]>,
       this.db.query(
-        `SELECT COUNT(*) AS count FROM "campaigns" WHERE "createdAt" >= now() - interval '7 days'`,
+        `SELECT COUNT(*) AS count FROM "campaigns" WHERE "deletedAt" IS NULL AND "createdAt" >= now() - interval '7 days'`,
       ) as Promise<Array<{ count: string }>>,
       this.db.query(`SELECT "status"::text AS key, COUNT(*) AS count FROM "payment_intents" GROUP BY 1`) as Promise<CountRow[]>,
       this.db.query(
@@ -224,9 +224,9 @@ export class AdminService {
       `SELECT u."id", u."email", u."phoneNumber", u."role"::text AS role,
               pr."firstName", pr."lastName", pr."countryCode", u."createdAt",
               k."status"::text AS "kycStatus",
-              (SELECT COUNT(*) FROM "campaigns" c WHERE c."creatorId" = u."id") AS campaigns,
+              (SELECT COUNT(*) FROM "campaigns" c WHERE c."creatorId" = u."id" AND c."deletedAt" IS NULL) AS campaigns,
               (SELECT COUNT(*) FROM "campaigns" c
-                WHERE c."creatorId" = u."id" AND c."status" = '${CampaignStatus.LIVE}') AS "liveCampaigns",
+                WHERE c."creatorId" = u."id" AND c."status" = '${CampaignStatus.LIVE}' AND c."deletedAt" IS NULL) AS "liveCampaigns",
               (SELECT COUNT(*) FROM "payment_intents" pi
                 WHERE pi."donorId" = u."id" AND pi."status" = '${TransactionStatus.SUCCESS}') AS "donationsGiven",
               (SELECT json_agg(json_build_object('currency', r."currency", 'amount', r.total::text, 'count', r.n))
@@ -340,6 +340,7 @@ export class AdminService {
          JOIN "users" u ON u."id" = c."creatorId"
          LEFT JOIN "user_profiles" p ON p."userId" = u."id"
          LEFT JOIN "payment_intents" pi ON pi."campaignId" = c."id" AND pi."status" = $1
+        WHERE c."deletedAt" IS NULL
         GROUP BY c."id", u."id", p."userId"
         ORDER BY SUM(pi."amount") DESC NULLS LAST, c."createdAt" DESC
         LIMIT 6`,
@@ -359,7 +360,7 @@ export class AdminService {
                 COUNT(c."id") AS campaigns,
                 COUNT(c."id") FILTER (WHERE c."status" = $1) AS live
            FROM "campaign_categories" cat
-           LEFT JOIN "campaigns" c ON c."categoryId" = cat."id"
+           LEFT JOIN "campaigns" c ON c."categoryId" = cat."id" AND c."deletedAt" IS NULL
           GROUP BY cat."id"
           ORDER BY COUNT(c."id") DESC, cat."name"`,
         [CampaignStatus.LIVE],

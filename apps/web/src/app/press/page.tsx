@@ -28,7 +28,7 @@ const FACTS = [
   {
     label: 'Where it operates',
     value:
-      'Campaigns raise in eight currencies with payouts over SWIFT and IBAN, and mobile money collection across East Africa.',
+      'Campaigns raise in USD and EUR, with payouts to the US-dollar and euro markets only.',
   },
   {
     label: 'How it makes money',

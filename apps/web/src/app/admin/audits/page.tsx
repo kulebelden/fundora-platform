@@ -17,6 +17,7 @@ import {
   HandCoins,
   Loader2,
   Lock,
+  Percent,
   Search,
   Smartphone,
   UserCircle2,
@@ -25,6 +26,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState, MoneyList, PageHeading, Panel, StatTile } from '@/components/admin/admin-ui';
+import { PlatformFeePanel } from '@/components/admin/platform-fee-panel';
 import { ReasonDialog } from '@/components/admin/reason-dialog';
 import { KycStatusBadge, WithdrawalStatusBadge } from '@/components/status-badge';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -681,7 +683,7 @@ function DonationsTab() {
 /* ------------------------------------------------------------------ page */
 
 export default function AdminAuditsPage() {
-  const [tab, setTab] = React.useState<'withdrawals' | 'donations'>('withdrawals');
+  const [tab, setTab] = React.useState<'withdrawals' | 'donations' | 'fee'>('withdrawals');
   const { data: overview } = useAdminOverview();
   const settled = overview?.donations.settled ?? 0;
 
@@ -689,7 +691,7 @@ export default function AdminAuditsPage() {
     <div className="space-y-6">
       <PageHeading
         title="Manage audits"
-        description="Approve payouts to organisers, and trace every donation back to the person who made it."
+        description="Approve payouts to organisers, trace every donation back to the person who made it, and set the platform fee."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -728,11 +730,12 @@ export default function AdminAuditsPage() {
         />
       </div>
 
-      <div role="tablist" aria-label="Audit area" className="inline-flex rounded-xl border bg-card p-1 shadow-sm">
+      <div role="tablist" aria-label="Audit area" className="flex max-w-full overflow-x-auto rounded-xl border bg-card p-1 shadow-sm sm:inline-flex">
         {(
           [
             { key: 'withdrawals', label: 'Withdrawals', icon: Wallet, count: overview?.queues.withdrawalsAwaitingReview ?? 0 },
             { key: 'donations', label: 'Donations & donors', icon: HandCoins, count: 0 },
+            { key: 'fee', label: 'Platform fee', icon: Percent, count: 0 },
           ] as const
         ).map(({ key, label, icon: Icon, count }) => (
           <button
@@ -742,7 +745,7 @@ export default function AdminAuditsPage() {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+              'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
               tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -755,7 +758,7 @@ export default function AdminAuditsPage() {
         ))}
       </div>
 
-      {tab === 'withdrawals' ? <WithdrawalsTab /> : <DonationsTab />}
+      {tab === 'withdrawals' ? <WithdrawalsTab /> : tab === 'donations' ? <DonationsTab /> : <PlatformFeePanel />}
     </div>
   );
 }

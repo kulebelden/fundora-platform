@@ -7,6 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { api, isUnauthorized } from './api';
+import { queryKeys } from './query-keys';
 import type {
   AdminOverview,
   ContactMessageInput,
@@ -37,32 +38,8 @@ import type {
   WithdrawalRequestView,
 } from './types';
 
-export const queryKeys = {
-  me: ['auth', 'me'] as const,
-  campaigns: (page: number, limit: number) => ['campaigns', page, limit] as const,
-  campaign: (slug: string) => ['campaign', slug] as const,
-  campaignById: (id: string) => ['campaign', 'id', id] as const,
-  campaignUpdates: (id: string) => ['campaign', id, 'updates'] as const,
-  myCampaigns: ['campaigns', 'me'] as const,
-  categories: ['categories'] as const,
-  donations: (campaignId: string) => ['donations', campaignId] as const,
-  withdrawals: ['withdrawals', 'me'] as const,
-  kyc: ['kyc', 'status'] as const,
-  stats: ['platform', 'stats'] as const,
-  adminCampaigns: (status: string, page: number) =>
-    ['admin', 'campaigns', status, page] as const,
-  adminCampaignCounts: ['admin', 'campaigns', 'counts'] as const,
-  adminKyc: ['admin', 'kyc', 'pending'] as const,
-  adminWithdrawals: ['admin', 'withdrawals', 'pending'] as const,
-  adminOverview: ['admin', 'overview'] as const,
-  adminUsers: (role: string, search: string, page: number) =>
-    ['admin', 'users', role, search, page] as const,
-  adminMessages: (filter: string, page: number) => ['admin', 'messages', filter, page] as const,
-  adminDonations: (status: string, channel: string, search: string, page: number) =>
-    ['admin', 'donations', status, channel, search, page] as const,
-  adminWithdrawalAudit: (status: string, page: number) =>
-    ['admin', 'withdrawal-audit', status, page] as const,
-};
+// Kept in their own module so server components can prefetch under the same keys.
+export { queryKeys };
 
 /* ------------------------------------------------------------------ auth */
 
@@ -103,8 +80,8 @@ export function useLogin() {
   });
 }
 
+/** Creates the account. No session yet: the emailed link signs the person in. */
 export function useRegister() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: {
       email: string;
@@ -113,12 +90,46 @@ export function useRegister() {
       firstName: string;
       lastName: string;
     }) => {
-      const { data } = await api.post<AuthResponse>('/auth/register', payload);
+      const { data } = await api.post<{ status: 'VERIFICATION_SENT'; email: string }>('/auth/register', payload);
+      return data;
+    },
+  });
+}
+
+/** Opens the emailed link: verifies the address and starts the session. */
+export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { data } = await api.post<AuthResponse>('/auth/verify-email', { token });
       return data;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.me, data.user);
     },
+  });
+}
+
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      await api.post('/auth/resend-verification', { email });
+    },
+  });
+}
+
+export type OAuthProvider = 'google' | 'apple';
+
+/** Which social sign-in providers the API has credentials for. */
+export function useOAuthProviders() {
+  return useQuery({
+    queryKey: ['auth', 'oauth-providers'] as const,
+    queryFn: async () => {
+      const { data } = await api.get<Record<OAuthProvider, boolean>>('/auth/oauth/providers');
+      return data;
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 }
 
@@ -148,6 +159,25 @@ export function useCampaigns(page = 1, limit = 9) {
     },
     staleTime: 30_000,
     retry: 1,
+  });
+}
+
+/**
+ * Live campaigns matching a search, across the whole site (the API searches
+ * title, story, category and organiser). Off until there are 2+ characters.
+ */
+export function useCampaignSearch(query: string, limit = 6, page = 1) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['campaigns', 'search', q.toLowerCase(), limit, page] as const,
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedCampaigns>('/campaigns', { params: { q, limit, page } });
+      return data;
+    },
+    enabled: q.length >= 2,
+    staleTime: 30_000,
+    // Keep the previous results on screen while the next keystroke's results load.
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -425,6 +455,85 @@ export function usePendingWithdrawals() {
       return data;
     },
     retry: 1,
+  });
+}
+
+/* ------------------------------------------------------------- fees */
+
+export interface DonationFees {
+  platformFeePercent: number;
+  cardProcessingFeePercent: number;
+}
+
+/** The fees a donation carries right now. Public; the platform fee is set by the super admin. */
+export function useDonationFees() {
+  return useQuery({
+    queryKey: ['fees'] as const,
+    queryFn: async () => {
+      const { data } = await api.get<DonationFees>('/payments/fees');
+      return data;
+    },
+    // Always re-checked when a page mounts, so a fee change shows straight away.
+    staleTime: 0,
+  });
+}
+
+/** The live platform fee as people read it ("5%"), or null while it loads. */
+export function usePlatformFeeLabel(): string | null {
+  const { data } = useDonationFees();
+  return data ? `${data.platformFeePercent}%` : null;
+}
+
+export interface PlatformFeeChange {
+  id: string;
+  ratePercent: number;
+  previousRatePercent: number | null;
+  reason: string;
+  changedBy: string | null;
+  createdAt: string;
+}
+
+export function useAdminPlatformFee() {
+  return useQuery({
+    queryKey: ['admin', 'platform-fee'] as const,
+    queryFn: async () => {
+      const { data } = await api.get<{ ratePercent: number; history: PlatformFeeChange[] }>('/admin/platform-fee');
+      return data;
+    },
+    retry: 1,
+  });
+}
+
+export function useSetPlatformFee() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { ratePercent: number; reason: string }) => {
+      const { data } = await api.put<PlatformFeeChange>('/admin/platform-fee', payload);
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'platform-fee'] });
+      void queryClient.invalidateQueries({ queryKey: ['fees'] });
+    },
+  });
+}
+
+/** Super admin only. Archives the campaign; refused while its wallet still holds money. */
+export function useDeleteCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { campaignId: string; reason: string }) => {
+      const { data } = await api.delete<{ id: string; deletedAt: string }>(
+        `/admin/campaigns/${encodeURIComponent(payload.campaignId)}`,
+        { data: { reason: payload.reason } },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'campaigns'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminOverview });
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
   });
 }
 

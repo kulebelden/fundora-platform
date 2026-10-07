@@ -55,15 +55,15 @@ export function HeroSection({ campaigns }: { campaigns: CampaignSummary[] }) {
 
   return (
     <section className="hero-backdrop hero-glow relative overflow-hidden">
-      <div className="container relative z-10 grid pb-12 pt-6 sm:pb-16 sm:pt-8 lg:grid-cols-12 lg:items-center lg:gap-12 lg:pb-20 lg:pt-10">
+      <div className="container relative z-10 grid pb-10 pt-6 sm:pb-16 sm:pt-8 lg:grid-cols-12 lg:items-center lg:gap-12 lg:pb-20 lg:pt-10">
         {/* ----------------------- brand + badge + headline + CTAs */}
         <div className="lg:col-span-6 lg:pt-2">
-          <Badge className="mb-5 border-white/20 bg-white/10 text-white backdrop-blur">
+          <Badge className="mb-4 border-white/20 bg-white/10 text-white backdrop-blur sm:mb-5">
             <ShieldCheck className="h-3.5 w-3.5" />
             Verified causes · Auditable funds
           </Badge>
 
-          <h1 className="max-w-xl text-[2.5rem] font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
+          <h1 className="max-w-xl text-[2.25rem] font-extrabold leading-[1.06] tracking-tight text-white min-[400px]:text-[2.5rem] sm:text-5xl sm:leading-[1.05] md:text-6xl">
             Real People.
             <br />
             Real Causes.
@@ -71,12 +71,12 @@ export function HeroSection({ campaigns }: { campaigns: CampaignSummary[] }) {
             <span className="text-success">Greater Impact.</span>
           </h1>
 
-          <p className="mt-5 max-w-md text-base leading-relaxed text-white/80 sm:mt-6 sm:text-lg">
+          <p className="mt-4 max-w-md text-[0.9375rem] leading-relaxed text-white/80 sm:mt-6 sm:text-lg">
             HopeNest turns everyday generosity into verified, traceable help. Give to a cause today,
             or raise for one of your own and withdraw straight to your bank.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap">
+          <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap">
             <Button size="lg" variant="success" asChild>
               <Link href="/dashboard/campaigns">
                 Start a Campaign
@@ -99,9 +99,11 @@ export function HeroSection({ campaigns }: { campaigns: CampaignSummary[] }) {
         </div>
 
         {/* ----------------------- orbiting campaign cards */}
-        {/* The ring is absolutely positioned, so the column needs its own height. */}
+        {/* The ring is absolutely positioned, so the column needs its own height.
+            Hidden on phones and small tablets: the mini cards' text is too small to
+            read there, and the ring alone would push the trust bar off the first screen. */}
         {orbitCards.length ? (
-        <div className="relative mt-12 h-[21rem] sm:h-[24rem] lg:col-span-6 lg:mt-0 lg:h-[28rem]">
+        <div className="relative hidden lg:col-span-6 lg:block lg:h-[28rem]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="relative flex h-64 w-64 flex-shrink-0 scale-[0.82] items-center justify-center min-[380px]:scale-90 sm:h-72 sm:w-72 sm:scale-100">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -137,7 +139,7 @@ export function HeroSection({ campaigns }: { campaigns: CampaignSummary[] }) {
 
       {/* ----------------------- trust bar */}
       <div className="relative z-10 border-t border-white/15 bg-black/20 backdrop-blur-sm">
-        <div className="container py-7 sm:py-9">
+        <div className="container py-6 sm:py-9">
           <StatsTicker />
         </div>
       </div>
@@ -165,7 +167,7 @@ export function HeroSectionSkeleton() {
           </div>
         </div>
 
-        <div className="mt-16 h-64 w-full animate-pulse rounded-xl bg-white/5 lg:col-span-6 lg:mt-0" />
+        <div className="hidden h-64 w-full animate-pulse rounded-xl bg-white/5 lg:col-span-6 lg:block" />
       </div>
 
       <div className="container relative z-10 border-t border-white/15 py-9">

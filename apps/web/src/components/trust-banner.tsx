@@ -5,7 +5,7 @@ const PILLARS = [
   {
     Icon: Lock,
     title: 'Bank-grade payment security',
-    body: 'Card and bank payments run over PCI-DSS compliant processors. Card numbers never touch HopeNest servers, and every webhook is signature-verified before a shilling moves.',
+    body: 'Card and bank payments run over PCI-DSS compliant processors. Card numbers never touch HopeNest servers, and every webhook is signature-verified before funds move.',
     accent: 'bg-accent/10 text-accent',
   },
   {
@@ -59,7 +59,7 @@ export function TrustBanner() {
         <div className="hidden h-6 w-px bg-border sm:block" />
         <div className="flex items-center gap-3 text-sm font-medium">
           <Landmark className="h-5 w-5 text-muted-foreground" />
-          <span>SWIFT / IBAN bank transfers in 40+ countries</span>
+          <span>SWIFT / IBAN payouts across US-dollar & euro markets</span>
         </div>
         <div className="hidden h-6 w-px bg-border sm:block" />
         <div className="flex items-center gap-3 text-sm font-medium">

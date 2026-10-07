@@ -19,7 +19,9 @@ const withPWA = withPWAInit({
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    formats: ['image/avif', 'image/webp'],
+    // WebP only: AVIF is a little smaller but many times slower to encode, so
+    // every first view of a photo waited on the server.
+    formats: ['image/webp'],
   },
   /**
    * The API sets HttpOnly auth cookies. Proxying it under the web origin keeps every

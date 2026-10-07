@@ -224,7 +224,7 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
     tagline:
       'Fund the projects that hold a neighbourhood together — clinics, boreholes, youth programmes and local nonprofits.',
     description:
-      'Fund local nonprofits, community infrastructure, youth programmes and mutual aid, with double-entry accounting on every shilling.',
+      'Fund local nonprofits, community infrastructure, youth programmes and mutual aid, with double-entry accounting for every contribution.',
     icon: Users,
     accent: 'bg-warm/15 text-[#8a5200]',
     stats: { raised: '$5.4M', donors: '88K+', active: '1,640' },
@@ -380,7 +380,7 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
       {
         question: 'Can international donors give to a local project?',
         answer:
-          'Yes. A campaign raises in its own currency and donors give in theirs, so a project budgeted in shillings can be funded from anywhere. The campaign page always shows the currency the goal is set in.',
+          'Yes. A campaign raises in its own currency and donors give in theirs, so a project budgeted in USD or EUR can receive support from other supported markets. The campaign page always shows the currency the goal is set in.',
       },
       PAYOUT_FAQ,
       TRUST_FAQ,

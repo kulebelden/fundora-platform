@@ -32,7 +32,7 @@ const POSTS = [
   },
   {
     Icon: Sparkles,
-    title: 'What separates a £500 goal from a £5,000 one',
+    title: 'What separates a $500 goal from a $5,000 one',
     excerpt: 'Goal size is not a reach metric — it is a trust metric. Match the goal to the audience that already knows you.',
     tag: 'Goals',
   },

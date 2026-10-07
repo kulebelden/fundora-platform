@@ -6,10 +6,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ArrowRight, ChevronDown, LayoutDashboard, LogOut, Menu, Search, ShieldCheck, X } from 'lucide-react';
 import { AboutMegaMenu } from '@/components/about-mega-menu';
 import { FundraisingMegaMenu } from '@/components/fundraising-mega-menu';
+import { SearchPanel } from '@/components/search/search-panel';
 import { Logo } from '@/components/brand/logo';
 import { Avatar, AvatarFallback, AvatarImage, initials } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCategories, useLogout, useMe } from '@/lib/queries';
 import { ABOUT_MENU, FUNDRAISE_MENU, isNavPathActive, navSectionState } from '@/lib/site-nav';
 import { isAdminRole } from '@/lib/types';
@@ -47,10 +47,7 @@ function activeLinkClass(isActive: boolean, base: string): string {
   return cn(base, isActive && 'bg-success/10 text-success');
 }
 
-export function SiteHeader({ query, onQueryChange }: {
-  query?: string;
-  onQueryChange?: (value: string) => void;
-}) {
+export function SiteHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: me } = useMe();
@@ -62,7 +59,7 @@ export function SiteHeader({ query, onQueryChange }: {
   const [categoriesOpen, setCategoriesOpen] = React.useState(false);
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [fundraiseOpen, setFundraiseOpen] = React.useState(false);
-  const [localQuery, setLocalQuery] = React.useState('');
+  const [searchOpen, setSearchOpen] = React.useState(false);
 
   // Both menus open on hover, so Escape is the only way out for keyboard users.
   React.useEffect(() => {
@@ -77,9 +74,19 @@ export function SiteHeader({ query, onQueryChange }: {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [categoriesOpen, aboutOpen, fundraiseOpen]);
 
-  // Controlled by the page when it owns the filter; self-managed otherwise.
-  const value = query ?? localQuery;
-  const setValue = onQueryChange ?? setLocalQuery;
+  // Ctrl/Cmd+K or "/" opens search from anywhere, unless the person is typing.
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]');
+      if ((event.key === 'k' && (event.metaKey || event.ctrlKey)) || (event.key === '/' && !typing)) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const menu = categories?.length ? categories : FALLBACK_CATEGORIES;
 
@@ -97,29 +104,39 @@ export function SiteHeader({ query, onQueryChange }: {
     if (!mobileOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previous;
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [mobileOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md">
+    <>
+    {/* Phones pin the header with `fixed`, which takes it out of the flow; this keeps its space. */}
+    <div aria-hidden className="h-16 lg:hidden" />
+    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/85 backdrop-blur-md lg:sticky">
       <div className="container flex h-16 items-center gap-3 overflow-visible">
         <Link href="/" className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Logo priority />
         </Link>
 
-        <div className="relative ml-2 hidden max-w-sm flex-1 md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="Search causes, people, places…"
-            aria-label="Search campaigns"
-            className="h-10 pl-9"
-          />
-        </div>
+        {/* Looks like a field, opens the site-wide search panel. */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-haspopup="dialog"
+          className="ml-2 hidden h-10 max-w-sm flex-1 items-center gap-2.5 rounded-lg border border-input bg-background px-3 text-left text-sm text-muted-foreground shadow-sm transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Search causes, people, places…</span>
+          <kbd className="hidden shrink-0 rounded border bg-secondary px-1.5 py-0.5 text-[10px] font-semibold lg:block">
+            Ctrl K
+          </kbd>
+        </button>
 
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
           <div
@@ -336,29 +353,53 @@ export function SiteHeader({ query, onQueryChange }: {
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto lg:hidden"
+          className="ml-auto md:hidden"
+          aria-label="Search"
+          aria-haspopup="dialog"
+          onClick={() => {
+            setMobileOpen(false);
+            setSearchOpen(true);
+          }}
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:ml-auto lg:hidden"
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
           onClick={() => setMobileOpen((open) => !open)}
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
+    </header>
 
+      {/*
+        A sibling of <header>, not a child: the header's backdrop blur would make
+        it the containing block for anything `fixed` inside it. Pinned under the
+        header so it opens on screen wherever the page has been scrolled to.
+      */}
       {mobileOpen ? (
-        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t bg-background lg:hidden">
+        <div
+          id="mobile-menu"
+          className="mobile-menu-sheet fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto overscroll-contain border-t bg-background lg:hidden"
+        >
           <div className="container space-y-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <div className="relative md:hidden">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                placeholder="Search causes…"
-                aria-label="Search campaigns"
-                className="pl-9"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                setSearchOpen(true);
+              }}
+              className="flex h-11 w-full items-center gap-2.5 rounded-lg border border-input bg-background px-3 text-left text-sm text-muted-foreground shadow-sm"
+            >
+              <Search className="h-4 w-4" />
+              Search causes, people, pages…
+            </button>
 
             <div className="flex flex-wrap gap-2">
               {menu.map((category) => {
@@ -530,6 +571,8 @@ export function SiteHeader({ query, onQueryChange }: {
           </div>
         </div>
       ) : null}
-    </header>
+
+      <SearchPanel open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   );
 }

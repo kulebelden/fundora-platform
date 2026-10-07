@@ -41,22 +41,22 @@ interface SeedAccount {
  */
 const SUPER_ADMIN: SeedAccount = {
   email: 'admin@hopenest.test',
-  phoneNumber: '+256700000001',
+  phoneNumber: '+12025550101',
   password: 'Admin#2026Hope',
   role: UserRole.SUPER_ADMIN,
   firstName: 'Amara',
-  lastName: 'Okello',
-  countryCode: 'UG',
+  lastName: 'Whitfield',
+  countryCode: 'US',
 };
 
 const FUNDRAISER: SeedAccount = {
   email: 'grace@hopenest.test',
-  phoneNumber: '+256700000002',
+  phoneNumber: '+12025550102',
   password: 'Grace#2026Hope',
   role: UserRole.FUNDRAISER,
   firstName: 'Grace',
-  lastName: 'Nakato',
-  countryCode: 'UG',
+  lastName: 'Nakamura',
+  countryCode: 'US',
 };
 
 /** Slugs match the Discover hubs in apps/web/src/lib/category-data.ts. */
@@ -83,8 +83,8 @@ const CAMPAIGN = {
   currency: 'USD',
   story: [
     'My mother, Sarah, was diagnosed with stage two breast cancer in March. The oncology',
-    'team at Mulago National Referral Hospital has given her a strong chance if she can',
-    'complete six cycles of chemotherapy, followed by surgery in the autumn.',
+    'team has given her a strong chance if she can complete six cycles of chemotherapy,',
+    'followed by surgery in the autumn.',
     '',
     'We have covered the first two cycles by selling what we could. The remaining four,',
     'the surgery and the follow-up scans come to roughly $12,000 — more than our family',

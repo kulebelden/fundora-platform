@@ -13,6 +13,7 @@ import {
   PauseCircle,
   PlayCircle,
   Rocket,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 import { EmptyState, PageHeading, Panel } from '@/components/admin/admin-ui';
@@ -26,6 +27,8 @@ import { formatDate, formatMoney, fundedPercent } from '@/lib/currency';
 import {
   useAdminCampaignCounts,
   useAdminCampaigns,
+  useDeleteCampaign,
+  useMe,
   useUpdateCampaignStatus,
 } from '@/lib/queries';
 import type { CampaignStatus, CampaignSummary } from '@/lib/types';
@@ -112,6 +115,24 @@ export default function AdminCampaignsPage() {
   const counts = useAdminCampaignCounts();
   const list = useAdminCampaigns(tab, page);
   const updateStatus = useUpdateCampaignStatus();
+  const deleteCampaign = useDeleteCampaign();
+  const { data: me } = useMe();
+  const canDelete = me?.role === 'SUPER_ADMIN';
+  const [deleting, setDeleting] = React.useState<CampaignSummary | null>(null);
+
+  const remove = (campaign: CampaignSummary, reason: string) => {
+    deleteCampaign.mutate(
+      { campaignId: campaign.id, reason },
+      {
+        onSuccess: () => {
+          toast({ title: 'Campaign deleted', description: `${campaign.title} is no longer visible anywhere on HopeNest.` });
+          setDeleting(null);
+        },
+        onError: (error) =>
+          toast({ variant: 'destructive', title: 'Could not delete this campaign', description: apiErrorMessage(error) }),
+      },
+    );
+  };
 
   const total = Object.values(counts.data ?? {}).reduce((sum, n) => sum + (n ?? 0), 0);
 
@@ -253,6 +274,18 @@ export default function AdminCampaignsPage() {
                         }
                       />
                     ))}
+                    {canDelete ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={deleteCampaign.isPending && deleting?.id === campaign.id}
+                        onClick={() => setDeleting(campaign)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </Button>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -292,6 +325,16 @@ export default function AdminCampaignsPage() {
         busy={Boolean(pending)}
         onCancel={() => setReasonFor(null)}
         onConfirm={(reason) => reasonFor && void run(reasonFor.campaign, reasonFor.action, reason)}
+      />
+
+      <ReasonDialog
+        open={Boolean(deleting)}
+        title={deleting ? `Delete “${deleting.title}”?` : ''}
+        description="The campaign disappears from every page, list and dashboard. Its donations and payouts stay in Manage audits. A campaign still holding money cannot be deleted: pay it out or suspend it first."
+        confirmLabel="Delete campaign"
+        busy={deleteCampaign.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={(reason) => deleting && remove(deleting, reason)}
       />
     </div>
   );

@@ -28,7 +28,7 @@ interface EmergencyZone {
 }
 
 const ZONES: EmergencyZone[] = [
-  { id: '1', name: 'East Africa Drought', region: 'Horn of Africa', severity: 'CRITICAL', affected: 4200000, raised: '890000', target: '2000000', ngoVerified: true, campaignId: 'c1' },
+  { id: '1', name: 'Texas Gulf Coast Hurricane', region: 'United States', severity: 'CRITICAL', affected: 420000, raised: '890000', target: '2000000', ngoVerified: true, campaignId: 'c1' },
   { id: '2', name: 'Southeast Asia Typhoon', region: 'Philippines', severity: 'HIGH', affected: 1800000, raised: '540000', target: '1500000', ngoVerified: true, campaignId: 'c2' },
   { id: '3', name: 'Earthquake Response', region: 'Anatolian Belt', severity: 'EXTREME', affected: 6700000, raised: '1240000', target: '3500000', ngoVerified: true, campaignId: 'c3' },
   { id: '4', name: 'Refugee Crisis Support', region: 'Sahel Region', severity: 'HIGH', affected: 3100000, raised: '420000', target: '1800000', ngoVerified: false, campaignId: 'c4' },
@@ -190,7 +190,7 @@ export function EmergencyPageClient({ campaigns }: { campaigns?: CampaignSummary
             </h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { zone: 'East Africa Drought', update: '320 tonnes of food aid delivered to Mogadishu', time: '12 min ago' },
+                { zone: 'Texas Gulf Coast Hurricane', update: 'Emergency shelter and supplies delivered to displaced families', time: '12 min ago' },
                 { zone: 'Anatolian Earthquake', update: 'Field hospital operational in Hatay province', time: '34 min ago' },
                 { zone: 'Philippines Typhoon', update: '15,000 emergency shelters distributed', time: '1 hr ago' },
               ].map((item, i) => (

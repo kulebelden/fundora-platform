@@ -82,8 +82,8 @@ fails the UI says so plainly rather than showing invented numbers.
 
 **Currency totals are never converted.** `GET /stats/platform` reports `totalRaised` in one
 `reportingCurrency` and lists everything else under `totalRaisedByCurrency`, because the API
-holds no FX rates. The ticker names the other currencies instead of adding them in — summing
-UGX into USD would be wrong by roughly three orders of magnitude.
+holds no FX rates. The ticker names the other currencies instead of adding them in, so totals
+from different currencies are never combined without conversion data.
 
 **`raisedAmount` is gross settled donations, not the wallet balance.** The wallet is net of
 platform and processing fees, so the two figures legitimately differ; the dashboard shows both

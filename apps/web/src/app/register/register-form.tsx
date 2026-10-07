@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AlertCircle, Check, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
+import { CheckInbox } from '@/components/auth/check-inbox';
+import { AuthDivider, OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthSplitLayout } from '@/components/auth-split-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,7 @@ const schema = z.object({
   phoneNumber: z
     .string()
     .trim()
-    .regex(/^\+[1-9]\d{7,14}$/, 'Use international format, for example +256700000000'),
+    .regex(/^\+[1-9]\d{7,14}$/, 'Use international format, for example +12025550143'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
@@ -44,11 +45,12 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function RegisterForm() {
-  const router = useRouter();
   const registerUser = useRegister();
 
   const [showPassword, setShowPassword] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
+  // Set once the account exists: the page then asks the person to open their email.
+  const [sentTo, setSentTo] = React.useState<string | null>(null);
 
   const {
     register,
@@ -62,11 +64,30 @@ export function RegisterForm() {
   const onSubmit = (values: FormValues) => {
     setFormError(null);
     registerUser.mutate(values, {
-      onSuccess: () => router.push('/dashboard/campaigns'),
+      onSuccess: (result) => setSentTo(result.email),
       onError: (error) =>
         setFormError(apiErrorMessage(error, 'Could not create your account.')),
     });
   };
+
+  if (sentTo) {
+    return (
+      <AuthSplitLayout
+        title="Check your email"
+        subtitle="One more step before you can sign in."
+        footer={
+          <>
+            Already confirmed?{' '}
+            <Link href="/login" className="font-semibold text-accent hover:underline">
+              Log in
+            </Link>
+          </>
+        }
+      >
+        <CheckInbox email={sentTo} onChangeEmail={() => setSentTo(null)} />
+      </AuthSplitLayout>
+    );
+  }
 
   return (
     <AuthSplitLayout
@@ -81,6 +102,9 @@ export function RegisterForm() {
         </>
       }
     >
+      <OAuthButtons />
+      <AuthDivider label="or sign up with email" />
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         {formError ? (
           <div
@@ -143,7 +167,7 @@ export function RegisterForm() {
             id="phoneNumber"
             type="tel"
             autoComplete="tel"
-            placeholder="+256700000000"
+            placeholder="+12025550143"
             aria-invalid={Boolean(errors.phoneNumber)}
             {...register('phoneNumber')}
           />

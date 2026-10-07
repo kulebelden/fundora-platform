@@ -49,7 +49,7 @@ export default function CareersPage() {
           {
             icon: Globe,
             title: 'Two regions, real overlap',
-            body: 'East Africa and Europe, distributed with hours that actually overlap.',
+            body: 'North America and Europe, distributed with hours that actually overlap.',
           },
         ],
       }}
@@ -62,7 +62,7 @@ export default function CareersPage() {
         {
           heading: 'How we work',
           bullets: [
-            'Small team, distributed across East Africa and Europe, with real overlap hours rather than pure async.',
+            'Small team, distributed across North America and Europe, with real overlap hours rather than pure async.',
             'Engineers talk to support and to organisers. Nobody ships financial logic they have never had to explain to a user.',
             'Correctness over velocity where money is concerned — the ledger balances or the deploy does not go out.',
             'Reviews are thorough and unhurried; nothing in a fundraising ledger benefits from being rushed through.',

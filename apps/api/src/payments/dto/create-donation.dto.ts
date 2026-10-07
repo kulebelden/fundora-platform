@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -13,6 +14,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { SUPPORTED_CURRENCIES } from '../../common/supported-markets';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() || undefined : value;
@@ -31,6 +33,9 @@ export class CreateDonationDto {
   @IsOptional()
   @IsString()
   @MaxLength(3)
+  @IsIn(SUPPORTED_CURRENCIES, {
+    message: `currency must be one of: ${SUPPORTED_CURRENCIES.join(', ')}`,
+  })
   currency?: string;
 
   @IsOptional()

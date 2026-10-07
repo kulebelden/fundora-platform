@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Users } from 'lucide-react';
+import { CoverImage } from '@/components/cover-image';
 import { Avatar, AvatarFallback, AvatarImage, initials } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -19,12 +20,10 @@ export function CampaignCard({ campaign }: { campaign: CampaignSummary }) {
         className="relative block aspect-[8/5] overflow-hidden bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {campaign.coverImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- covers are arbitrary remote URLs; see README note on the image optimizer.
-          <img
+          <CoverImage
             src={campaign.coverImageUrl}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+            className="transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="brand-gradient flex h-full w-full items-center justify-center">

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CoverImage } from '@/components/cover-image';
 import { cn } from '@/lib/utils';
 
 export function ImageCarousel({
@@ -38,12 +39,14 @@ export function ImageCarousel({
       aria-roledescription="carousel"
       aria-label={alt}
     >
-      <div className="aspect-[16/9] w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element -- remote campaign media */}
-        <img
+      <div className="relative aspect-[16/9] w-full">
+        {/* The first image is the campaign page's main picture, so it loads first. */}
+        <CoverImage
+          key={images[index]}
           src={images[index]}
           alt={count > 1 ? `${alt} — image ${index + 1} of ${count}` : alt}
-          className="h-full w-full object-cover"
+          sizes="(min-width: 1024px) 760px, 100vw"
+          priority={index === 0}
         />
       </div>
 

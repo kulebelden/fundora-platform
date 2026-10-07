@@ -29,10 +29,17 @@ import {
   campaignCategoryOptions,
   isSelectableCategory,
 } from '@/lib/category-data';
-import { useCategories, useCreateCampaign, useMe } from '@/lib/queries';
+import { useCategories, useCreateCampaign, useMe, usePlatformFeeLabel } from '@/lib/queries';
 import type { CampaignSummary, CategorySummary } from '@/lib/types';
+import { CURRENCIES, currencyMeta } from '@/lib/currency';
 import { useMobileDeepLink } from '@/hooks/use-mobile-deep-link';
 import { cn } from '@/lib/utils';
+
+/** Smallest goal the API accepts (CreateCampaignDto). */
+const MIN_GOAL = 500;
+
+/** Quick-pick goals, in the campaign's currency. "Other amount" covers the rest. */
+const GOAL_PRESETS = [500, 1000, 2500, 5000, 10000, 25000, 50000];
 
 const CAMPAIGN_SCHEMA = z.object({
   title: z.string().trim().min(10, 'Title must be at least 10 characters').max(200),
@@ -40,8 +47,8 @@ const CAMPAIGN_SCHEMA = z.object({
   story: z.string().trim().min(50, 'Tell donors a little more (at least 50 characters)').max(10000),
   targetAmount: z.string().refine((v) => {
     const n = Number(v);
-    return Number.isFinite(n) && n >= 1000;
-  }, 'Target must be at least 1,000'),
+    return Number.isFinite(n) && n >= MIN_GOAL;
+  }, `Choose a goal, or enter one of at least ${MIN_GOAL.toLocaleString('en-US')}`),
   currency: z.string().default('USD'),
 });
 
@@ -117,6 +124,15 @@ export function CampaignCreationFlow() {
 
   const selectedCategory = watch('category');
   const selectedCurrency = watch('currency');
+  const targetAmount = watch('targetAmount');
+  const currencySymbol = currencyMeta(selectedCurrency).symbol;
+  const fee = usePlatformFeeLabel();
+  // "Other amount" stays open once chosen, even if the typed value matches a preset.
+  const [customGoal, setCustomGoal] = React.useState(false);
+  const pickGoal = (value: number | null) => {
+    setCustomGoal(value === null);
+    setValue('targetAmount', value === null ? '' : String(value), { shouldValidate: value !== null });
+  };
 
   // The wizard is not remounted when the query string changes (soft navigation from
   // one hub CTA to another), so the preset has to be re-applied here.
@@ -379,38 +395,92 @@ export function CampaignCreationFlow() {
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="targetAmount">Target amount</Label>
-                  <Input
-                    id="targetAmount"
-                    inputMode="decimal"
-                    placeholder="5000"
-                    aria-invalid={Boolean(errors.targetAmount)}
-                    {...register('targetAmount')}
-                  />
-                  {errors.targetAmount ? (
-                    <p className="text-xs font-medium text-destructive">{errors.targetAmount.message}</p>
-                  ) : null}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    id="currency"
-                    value={selectedCurrency ?? 'USD'}
-                    onChange={(e) => {
-                      setValue('currency', e.target.value, { shouldValidate: true });
-                      setDraft((current) => ({ ...current, currency: e.target.value }));
-                    }}
-                  >
-                    {['USD', 'EUR', 'GBP', 'UGX', 'KES', 'NGN'].map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="currency">Currency</Label>
+                <Select
+                  id="currency"
+                  value={selectedCurrency ?? 'USD'}
+                  onChange={(e) => {
+                    setValue('currency', e.target.value, { shouldValidate: true });
+                    setDraft((current) => ({ ...current, currency: e.target.value }));
+                  }}
+                >
+                  {CURRENCIES.map((currency) => (
+                    <option key={currency.code} value={currency.code}>
+                      {currency.label} ({currency.code})
+                    </option>
+                  ))}
+                </Select>
               </div>
+
+              <fieldset className="space-y-2.5">
+                <legend className="text-sm font-medium leading-none">Fundraising goal</legend>
+                <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-4">
+                  {GOAL_PRESETS.map((preset) => {
+                    const active = !customGoal && targetAmount === String(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => pickGoal(preset)}
+                        className={cn(
+                          'tabular h-12 rounded-xl border text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          active
+                            ? 'border-success bg-success/10 text-success'
+                            : 'bg-background hover:border-foreground/30 hover:bg-secondary',
+                        )}
+                      >
+                        {currencySymbol}
+                        {preset.toLocaleString('en-US')}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    aria-pressed={customGoal}
+                    onClick={() => pickGoal(null)}
+                    className={cn(
+                      'h-12 rounded-xl border text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      customGoal
+                        ? 'border-success bg-success/10 text-success'
+                        : 'border-dashed bg-background hover:border-foreground/30 hover:bg-secondary',
+                    )}
+                  >
+                    Other amount
+                  </button>
+                </div>
+
+                {customGoal ? (
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      id="targetAmount"
+                      inputMode="decimal"
+                      autoFocus
+                      placeholder={`At least ${MIN_GOAL.toLocaleString('en-US')}`}
+                      aria-label="Your own goal"
+                      aria-invalid={Boolean(errors.targetAmount)}
+                      className="tabular pl-8 text-base font-semibold"
+                      {...register('targetAmount', {
+                        setValueAs: (value: string) => String(value).replace(/[^\d.]/g, ''),
+                      })}
+                    />
+                  </div>
+                ) : null}
+
+                {errors.targetAmount ? (
+                  <p className="text-xs font-medium text-destructive">{errors.targetAmount.message}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {fee
+                      ? `Pick a goal you can reach. Each donation carries a ${fee} platform fee, shown to donors before they give.`
+                      : 'Pick a goal you can reach. You can share updates as you get closer.'}
+                  </p>
+                )}
+              </fieldset>
 
               <Button type="submit" size="lg" className="w-full" disabled={isPublishing || coverBusy}>
                 {coverBusy ? (

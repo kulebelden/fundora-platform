@@ -74,7 +74,7 @@ export class BankWirePaymentAdapter implements IPaymentAdapter {
         randomUUID(),
       status,
       amount: Number(eventPayload?.amount ?? 0),
-      currency: (eventPayload?.currency ?? 'ugx').toUpperCase(),
+      currency: (eventPayload?.currency ?? 'usd').toUpperCase(),
     };
   }
 

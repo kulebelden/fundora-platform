@@ -26,16 +26,16 @@ interface School {
 }
 
 const SCHOOLS: School[] = [
-  { id: 's1', name: 'Rural Primary School Kitgum', location: 'Northern Uganda', students: 840, raised: '42000', target: '75000', gradeLevel: 'Primary' },
+  { id: 's1', name: 'Riverside Elementary School', location: 'Ohio, United States', students: 840, raised: '42000', target: '75000', gradeLevel: 'Primary' },
   { id: 's2', name: 'Community High School Bekasi', location: 'West Java', students: 1200, raised: '68000', target: '120000', gradeLevel: 'Secondary' },
-  { id: 's3', name: 'Refugee Learning Center Kakuma', location: 'Kenya', students: 560, raised: '31000', target: '90000', gradeLevel: 'All levels' },
+  { id: 's3', name: 'Community Learning Center', location: 'Ohio, United States', students: 560, raised: '31000', target: '90000', gradeLevel: 'All levels' },
   { id: 's4', name: 'Slum Outreach School Manila', location: 'Philippines', students: 430, raised: '28000', target: '65000', gradeLevel: 'Primary' },
-  { id: 's5', name: 'Indigenous Community School Manitoba', location: 'Canada', students: 320, raised: '55000', target: '80000', gradeLevel: 'K-12' },
+  { id: 's5', name: 'Alpine Community School', location: 'Tyrol, Austria', students: 320, raised: '55000', target: '80000', gradeLevel: 'K-12' },
   { id: 's6', name: 'Girls Education Initiative Kabul', location: 'Afghanistan', students: 280, raised: '39000', target: '70000', gradeLevel: 'Secondary' },
 ];
 
 const NGO_LIST = [
-  { name: 'WaterAid East Africa', focus: 'Clean water access', raised: '340000', target: '500000', donors: 2840 },
+  { name: 'Great Lakes Community Water Project', focus: 'Clean water access', raised: '340000', target: '500000', donors: 2840 },
   { name: 'ShelterBox Global', focus: 'Emergency shelter', raised: '520000', target: '800000', donors: 4120 },
   { name: 'Doctors Without Borders', focus: 'Medical aid', raised: '1200000', target: '1500000', donors: 12400 },
   { name: 'Save the Children', focus: 'Child protection', raised: '780000', target: '1000000', donors: 8900 },

@@ -2,99 +2,100 @@ import type { Metadata } from 'next';
 import { Building2, Globe, Landmark, LifeBuoy, Receipt, Smartphone } from 'lucide-react';
 import { MarketingPage } from '@/components/marketing-page';
 import { Card } from '@/components/ui/card';
-import { CURRENCIES } from '@/lib/currency';
+import { COUNTRIES, CURRENCIES, currencyMeta } from '@/lib/currency';
 import { HERO_IMAGES } from '@/lib/hero-images';
 
 export const metadata: Metadata = {
   title: 'Supported Countries & Currencies',
   description:
-    'Where HopeNest pays out and which currencies a campaign can raise in — SWIFT and IBAN transfers across East Africa, the US, UK, EU and beyond.',
+    'Campaigns raise in US dollars or euros, with payouts to the US-dollar and euro markets only.',
   alternates: { canonical: '/countries' },
 };
 
-/** Regions are payout rails, not a closed list of donor countries — donors can give from anywhere. */
+/** Payout markets, grouped by the currency their banks settle in. */
 const REGIONS = [
   {
-    name: 'East Africa',
+    name: 'United States and US-dollar markets',
     detail:
-      'Uganda, Kenya, Tanzania and Rwanda. Mobile money (MTN MoMo and Airtel Money) alongside bank transfer, with payouts to local bank accounts.',
+      'US-dollar campaigns pay out to bank accounts in the United States and the other dollarised markets, with SWIFT/BIC details for international transfers.',
   },
   {
-    name: 'United States & Canada',
-    detail: 'Card and ACH-backed bank transfer in, payouts to domestic bank accounts by SWIFT.',
-  },
-  {
-    name: 'United Kingdom & European Union',
-    detail: 'Card and bank transfer in, payouts to any IBAN account across the SEPA area.',
-  },
-  {
-    name: 'Australia & New Zealand',
-    detail: 'Card and bank transfer in, SWIFT payouts to domestic accounts.',
-  },
-  {
-    name: 'Everywhere else',
+    name: 'Eurozone',
     detail:
-      'Donors can give from any country a card or bank works in. Payouts need a SWIFT or IBAN account we can reach — if yours is not covered, support will tell you before you start rather than after you raise.',
+      'Euro campaigns pay out to bank accounts across the euro area. IBAN is the fastest route for these, and SWIFT/BIC is kept as a fallback.',
+  },
+  {
+    name: 'Currency conversion',
+    detail:
+      'A campaign keeps its goal in the currency it was created in. Donors give in that same currency, so no conversion is applied to a gift.',
+  },
+  {
+    name: 'International donors',
+    detail:
+      'Donors can give from other card markets. Available payout banks depend on the destination country and the transfer provider.',
   },
 ];
 
 export default function CountriesPage() {
+  const usdCountries = COUNTRIES.filter((country) => country.currency === 'USD');
+  const eurCountries = COUNTRIES.filter((country) => country.currency === 'EUR');
+
   return (
     <MarketingPage
       image={HERO_IMAGES.countries}
-      eyebrow="Global reach"
+      eyebrow="US dollar & euro"
       eyebrowIcon={Globe}
       variant="aurora"
       tone="sky"
-      title="Raise locally,"
-      accent="funded globally."
-      lead="A campaign raises in one currency; donors give in theirs. What determines whether you can run a campaign is not where your donors are, but whether we can pay out to your bank."
+      title="Raise in dollars"
+      accent="or euros."
+      lead="Set a campaign goal in USD or EUR. Those are the only two currencies HopeNest raises in, and payouts go to bank accounts in the markets that settle in them."
       crumbs={[{ label: 'About', href: '/about' }, { label: 'Supported Countries' }]}
       primaryCta={{ label: 'Start a Campaign', href: '/create' }}
       secondaryCta={{ label: 'Ask about your bank', href: '/contact', icon: LifeBuoy }}
       spotlight={{
-        title: 'The payout rails',
-        note: 'Donors can give from anywhere a card or bank works. These are the rails that get the money out.',
+        title: 'Supported currencies and banks',
+        note: `Payouts are available to ${COUNTRIES.length} countries — every market whose official currency is the US dollar or the euro.`,
         items: [
           {
             icon: Landmark,
-            title: 'SWIFT — 40+ countries',
-            body: 'Payouts to domestic bank accounts across the regions below.',
+            title: 'USD bank directory',
+            body: 'US-dollar bank entries include SWIFT/BIC details for international transfers.',
           },
           {
             icon: Building2,
-            title: 'IBAN across the SEPA area',
-            body: 'Transfers to any IBAN account in the UK and European Union.',
+            title: 'EUR bank directory',
+            body: 'Euro-area entries include IBAN and SWIFT/BIC details for local and cross-border transfers.',
           },
           {
             icon: Smartphone,
-            title: 'Mobile money in East Africa',
-            body: 'MTN MoMo and Airtel Money collection, with local bank payouts.',
+            title: 'Two currencies only',
+            body: 'Every campaign is denominated in USD or EUR, so totals are never mixed across currencies.',
           },
         ],
       }}
       highlights={[
         { value: `${CURRENCIES.length}`, label: 'Currencies a campaign can raise in', icon: Globe, tone: 'accent' },
-        { value: '40+', label: 'Countries reachable by SWIFT', icon: Landmark, tone: 'success' },
+        { value: `${COUNTRIES.length}`, label: 'Supported payout countries', icon: Landmark, tone: 'success' },
         { value: '0', label: 'Exchange margin added by us', icon: Receipt, tone: 'warm' },
       ]}
       sections={[
         {
           heading: 'How cross-border giving works',
-          body: 'A goal set in Ugandan shillings can be funded by a donor paying in euros. The payment processor handles conversion at its prevailing rate; HopeNest holds no FX rates and adds no exchange margin. The campaign page always shows the currency the goal is set in, so the progress bar means one thing to everybody.',
+          body: 'A campaign keeps its goal in USD or EUR. Donors give in that same currency, so a gift is never converted on its way in, and the campaign page always reports progress in its goal currency.',
         },
         {
           heading: 'Payout rails',
           bullets: [
-            'SWIFT transfers to bank accounts in 40+ countries.',
-            'IBAN transfers across the SEPA area.',
-            'Mobile money collection in East Africa via MTN MoMo and Airtel Money.',
+            `A bank directory covering ${usdCountries.length} US-dollar markets and ${eurCountries.length} euro-area markets.`,
+            'SWIFT/BIC details are stored for every listed bank; IBAN is supported across the euro area.',
             'Payout details are collected privately at withdrawal and never appear on a campaign page.',
+            'Actual bank transfers require a live payout provider; the current payout adapter is simulated.',
           ],
         },
         {
           heading: 'A note on totals',
-          body: 'Platform-wide totals are reported in a single currency and never silently fold in amounts raised in another one — the API holds no exchange rates, so a figure in shillings is never quietly presented as dollars.',
+          body: 'Platform-wide totals are reported in a single currency and never silently fold in amounts raised in another one. The campaign currency remains visible anywhere a total is shown.',
         },
       ]}
       cta={{
@@ -107,7 +108,7 @@ export default function CountriesPage() {
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
           Currencies a campaign can raise in
         </h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {CURRENCIES.map((currency) => (
             <Card key={currency.code} className="p-5">
               <div className="flex items-baseline gap-2">
@@ -134,6 +135,43 @@ export default function CountriesPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="container py-16 sm:py-20">
+        <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Supported countries
+        </h2>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
+          Every country below settles in {currencyMeta('USD').label} ({currencyMeta('USD').symbol}) or{' '}
+          {currencyMeta('EUR').label} ({currencyMeta('EUR').symbol}).
+        </p>
+
+        {[
+          { title: 'United States dollar', currency: 'USD', list: usdCountries },
+          { title: 'Euro', currency: 'EUR', list: eurCountries },
+        ].map((group) => (
+          <div key={group.currency} className="mt-10">
+            <h3 className="flex items-baseline gap-2 text-lg font-bold">
+              {group.title}
+              <span className="text-sm font-semibold text-muted-foreground">
+                {group.list.length} countries
+              </span>
+            </h3>
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {group.list.map((country) => (
+                <li
+                  key={country.code}
+                  className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3"
+                >
+                  <span className="text-sm font-medium">{country.name}</span>
+                  <span className="tabular shrink-0 text-xs font-bold text-muted-foreground">
+                    {country.code}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </section>
     </MarketingPage>
   );

@@ -15,7 +15,8 @@ import { BankWirePaymentAdapter } from './adapters/bank-wire.adapter';
 import { IPaymentAdapter } from './adapters/payment-adapter.interface';
 import { CreateDonationDto, DonationProvider } from './dto/create-donation.dto';
 import { LedgerService } from '../ledger/ledger.service';
-import { CARD_PROCESSING_FEE_RATE, PLATFORM_FEE_RATE } from '../ledger/fees';
+import { CARD_PROCESSING_FEE_RATE } from '../ledger/fees';
+import { PlatformFeeService } from '../ledger/platform-fee.service';
 
 export interface DonationResponse {
   paymentIntentId: string;
@@ -64,6 +65,7 @@ export class PaymentsService {
     private readonly stripe: StripePaymentAdapter,
     private readonly bankWire: BankWirePaymentAdapter,
     private readonly ledger: LedgerService,
+    private readonly platformFees: PlatformFeeService,
     @InjectRepository(PaymentIntent)
     private readonly paymentIntents: Repository<PaymentIntent>,
     @InjectRepository(ProcessedWebhook)
@@ -106,9 +108,12 @@ export class PaymentsService {
 
     const currency = dto.currency ?? campaign.currency;
     const grossAmount = Number(dto.amount);
-    const platformFee = Number((grossAmount * PLATFORM_FEE_RATE).toFixed(2));
+    // Snapshotted onto the intent below, so settlement charges what is quoted here.
+    const platformFeeRate = await this.platformFees.currentRate();
+    const platformFee = Number((grossAmount * platformFeeRate).toFixed(2));
+    // Bank transfers carry no processor fee; the ledger posts them the same way.
     const processingFee = Number(
-      (grossAmount * CARD_PROCESSING_FEE_RATE).toFixed(2),
+      (provider === 'bank_wire' ? 0 : grossAmount * CARD_PROCESSING_FEE_RATE).toFixed(2),
     );
     const netAmount = Number(
       (grossAmount - platformFee - processingFee).toFixed(2),
@@ -134,6 +139,7 @@ export class PaymentsService {
       donorId: donorId ?? null,
       amount: grossAmount.toString(),
       currency,
+      platformFeeRate: platformFeeRate.toFixed(4),
       channel,
       providerReference: intentResult.providerReference,
       status: TransactionStatus.PENDING,

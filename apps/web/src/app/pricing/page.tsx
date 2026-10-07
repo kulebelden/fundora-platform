@@ -5,8 +5,9 @@ import { Card } from '@/components/ui/card';
 import { formatMoney } from '@/lib/currency';
 import {
   CARD_PROCESSING_FEE_LABEL,
-  PLATFORM_FEE_LABEL,
   WITHDRAWAL_FEE_LABEL,
+  feeLabel,
+  fetchPlatformFeeRate,
   previewDonation,
   previewWithdrawal,
 } from '@/lib/fees';
@@ -25,17 +26,17 @@ export const metadata: Metadata = {
  */
 const DONATION_EXAMPLES = [100, 1000, 10000];
 
-const FEES = [
+const feesFor = (platformFeeLabel: string) => [
   {
     name: 'Platform fee',
-    rate: PLATFORM_FEE_LABEL,
+    rate: platformFeeLabel,
     when: 'Deducted from each donation as it settles.',
     detail:
       'Covers campaign review, identity verification, moderation and the support team. Charged on the gross donation, in the campaign’s currency.',
   },
   {
     name: 'Payment processing',
-    rate: `${CARD_PROCESSING_FEE_LABEL} (card & mobile money)`,
+    rate: `${CARD_PROCESSING_FEE_LABEL} (card payments)`,
     when: 'Deducted from each donation as it settles.',
     detail:
       'Passed through from the payment processor. Bank transfers are the exception: direct transfers carry no processing fee at all.',
@@ -56,8 +57,14 @@ const FEES = [
   },
 ];
 
-export default function PricingPage() {
+/** The platform fee is set by the super admin, so the page is rendered per request. */
+export const dynamic = 'force-dynamic';
+
+export default async function PricingPage() {
   const withdrawalExample = previewWithdrawal(1000);
+  const platformFeeRate = await fetchPlatformFeeRate();
+  const platformFeeLabel = feeLabel(platformFeeRate);
+  const fees = feesFor(platformFeeLabel);
 
   return (
     <MarketingPage
@@ -78,13 +85,13 @@ export default function PricingPage() {
         items: [
           {
             icon: Receipt,
-            title: `Platform fee — ${PLATFORM_FEE_LABEL}`,
+            title: `Platform fee — ${platformFeeLabel}`,
             body: 'Taken from each donation as it settles, in the campaign’s own currency.',
           },
           {
             icon: CreditCard,
             title: 'Payment processing',
-            body: 'Passed through from the processor on card and mobile money. Bank transfers carry none.',
+            body: 'Passed through from the processor on card payments. Bank transfers carry none.',
           },
           {
             icon: Landmark,
@@ -122,7 +129,7 @@ export default function PricingPage() {
       <section className="container pb-4">
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">The full list</h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
-          {FEES.map((fee) => (
+          {fees.map((fee) => (
             <Card key={fee.name} className="p-6">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h3 className="text-lg font-bold">{fee.name}</h3>
@@ -146,14 +153,14 @@ export default function PricingPage() {
             What a donation actually delivers
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            Card and mobile money gifts, in US dollars. A bank transfer of the same size
+            Card gifts, in US dollars. A bank transfer of the same size
             carries no processing fee, so the campaign keeps correspondingly more.
           </p>
 
           <div className="mt-8 overflow-x-auto">
             <table className="w-full min-w-[40rem] border-collapse text-sm">
               <caption className="sr-only">
-                Donation fee breakdown for card and mobile money gifts
+                Donation fee breakdown for card gifts
               </caption>
               <thead>
                 <tr className="border-b text-left">
@@ -166,8 +173,8 @@ export default function PricingPage() {
               </thead>
               <tbody className="tabular">
                 {DONATION_EXAMPLES.map((amount) => {
-                  const card = previewDonation(amount, 'card');
-                  const bank = previewDonation(amount, 'bank');
+                  const card = previewDonation(amount, 'card', platformFeeRate);
+                  const bank = previewDonation(amount, 'bank', platformFeeRate);
                   return (
                     <tr key={amount} className="border-b">
                       <td className="py-3.5 pr-4 font-bold">

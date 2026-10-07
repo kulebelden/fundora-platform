@@ -19,17 +19,20 @@ export function StatCard({
   valueClassName?: string;
 }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', accent)}>
+    // Sized to sit two-up on a phone: tighter padding and a smaller figure below `sm`.
+    <Card className="min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <p className="text-[11px] font-bold uppercase leading-snug tracking-wide text-muted-foreground sm:text-xs">
+          {label}
+        </p>
+        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9', accent)}>
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <p className={cn('tabular mt-3 text-2xl font-extrabold leading-tight', valueClassName)}>
+      <p className={cn('tabular mt-2 truncate text-xl font-extrabold leading-tight sm:mt-3 sm:text-2xl', valueClassName)}>
         {value}
       </p>
-      {sub ? <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div> : null}
+      {sub ? <div className="mt-1 text-[11px] leading-snug text-muted-foreground sm:mt-1.5 sm:text-xs">{sub}</div> : null}
     </Card>
   );
 }

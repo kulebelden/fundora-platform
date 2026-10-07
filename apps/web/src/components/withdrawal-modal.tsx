@@ -18,9 +18,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { apiErrorMessage } from '@/lib/api';
-import { fractionDigits, formatMoney } from '@/lib/currency';
+import { COUNTRIES, fractionDigits, formatMoney } from '@/lib/currency';
 import { WITHDRAWAL_FEE_LABEL, previewWithdrawal } from '@/lib/fees';
 import { useKycStatus, useRequestWithdrawal } from '@/lib/queries';
 import type { KycStatus } from '@/lib/types';
@@ -58,7 +59,10 @@ function buildSchema(maxAmount: number) {
       .string()
       .trim()
       .optional()
-      .refine((value) => !value || /^[A-Za-z]{2}$/.test(value), 'Use a 2-letter country code'),
+      .refine(
+        (value) => !value || COUNTRIES.some((country) => country.code === value.toUpperCase()),
+        'Choose a supported payout country',
+      ),
   });
 }
 
@@ -90,6 +94,7 @@ export function WithdrawalModal({
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -237,7 +242,7 @@ export function WithdrawalModal({
                 <Field
                   id="wd-bankName"
                   label="Bank name"
-                  placeholder="Stanbic Bank Uganda"
+                  placeholder="Chase Bank"
                   error={errors.bankName?.message}
                   {...register('bankName')}
                 />
@@ -258,7 +263,7 @@ export function WithdrawalModal({
                 <Field
                   id="wd-swiftBic"
                   label="SWIFT / BIC"
-                  placeholder="SBICUGKX"
+                  placeholder="CHASUS33"
                   error={errors.swiftBic?.message}
                   className="uppercase"
                   {...register('swiftBic')}
@@ -272,16 +277,43 @@ export function WithdrawalModal({
                   className="uppercase"
                   {...register('iban')}
                 />
-                <Field
-                  id="wd-country"
-                  label="Bank country"
-                  hint="Optional · ISO code"
-                  placeholder="UG"
-                  maxLength={2}
-                  error={errors.country?.message}
-                  className="uppercase"
-                  {...register('country')}
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="wd-country" className="flex items-baseline gap-2">
+                    Bank country
+                    <span className="text-xs font-normal text-muted-foreground">
+                      Optional · supported markets only
+                    </span>
+                  </Label>
+                  <Select
+                    id="wd-country"
+                    value={watch('country') ?? ''}
+                    onChange={(event) => setValue('country', event.target.value || undefined, {
+                      shouldValidate: true,
+                    })}
+                    aria-invalid={Boolean(errors.country?.message)}
+                  >
+                    <option value="">Select a country</option>
+                    <optgroup label="United States dollar (USD)">
+                      {COUNTRIES.filter((country) => country.currency === 'USD').map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Euro (EUR)">
+                      {COUNTRIES.filter((country) => country.currency === 'EUR').map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </Select>
+                  {errors.country?.message ? (
+                    <p className="text-xs font-medium text-destructive">
+                      {errors.country.message}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </div>
 

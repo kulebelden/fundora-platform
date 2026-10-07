@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, BadgeCheck, ChevronDown, LockKeyhole, Scale, Search } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const COLUMNS = [
   {
@@ -45,9 +46,13 @@ const TRUST = [
 const LINK_CLASS =
   'rounded-sm text-sm text-white/65 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
-export function SiteFooter() {
+/**
+ * `cta={false}` drops the "Ready to make a difference?" band, for signed-in
+ * app pages (dashboards) where it would only repeat the page's own actions.
+ */
+export function SiteFooter({ cta = true }: { cta?: boolean } = {}) {
   return (
-    <footer className="relative mt-24 overflow-hidden bg-[#001a40] text-white">
+    <footer className={cn('relative overflow-hidden bg-[#001a40] text-white', cta ? 'mt-24' : 'mt-16')}>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_0%_0%,rgb(0_168_107/0.16),transparent_70%),radial-gradient(40%_50%_at_100%_0%,rgb(0_102_255/0.2),transparent_70%)]"
@@ -55,6 +60,7 @@ export function SiteFooter() {
 
       <div className="container relative">
         {/* ------------------------------------------------ call to action */}
+        {cta ? (
         <div className="flex flex-col items-center gap-6 border-b border-white/10 py-10 text-center sm:py-12 md:flex-row md:justify-between md:text-left">
           <div className="max-w-lg">
             <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
@@ -84,6 +90,7 @@ export function SiteFooter() {
             </Button>
           </div>
         </div>
+        ) : null}
 
         {/* ------------------------------------------------ brand + links */}
         <div className="grid gap-10 py-10 sm:py-14 md:grid-cols-[1.4fr_repeat(3,1fr)] md:gap-8">
@@ -97,7 +104,7 @@ export function SiteFooter() {
               <Logo variant="stacked" className="w-40 sm:w-44" />
             </Link>
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/65">
-              Every shilling, dollar and euro is tracked on a double-entry ledger, so donors
+              Every dollar and euro is tracked on a double-entry ledger, so donors
               and fundraisers see the same numbers.
             </p>
             <ul className="mt-6 flex flex-wrap justify-center gap-2 md:justify-start">

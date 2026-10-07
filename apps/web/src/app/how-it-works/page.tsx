@@ -7,7 +7,7 @@ import { HERO_IMAGES } from '@/lib/hero-images';
 export const metadata: Metadata = {
   title: 'How HopeNest Works',
   description:
-    'Draft a campaign, verify your identity once, collect donations in any supported currency and withdraw to your bank — with the fee and net amount shown before you confirm.',
+    'Draft a campaign, verify your identity once, collect donations in US dollars or euros and withdraw to your bank — with the fee and net amount shown before you confirm.',
   alternates: { canonical: '/how-it-works' },
 };
 
@@ -15,7 +15,7 @@ const STEPS = [
   {
     Icon: HeartHandshake,
     title: 'Draft your campaign',
-    body: 'Write the story, set a goal in your own currency and pick a category. It takes a few minutes and costs nothing. A reviewer reads every campaign before it goes live; emergency causes are queued ahead of the line.',
+    body: 'Write the story, set a goal in US dollars or euros and pick a category. It takes a few minutes and costs nothing. A reviewer reads every campaign before it goes live; emergency causes are queued ahead of the line.',
   },
   {
     Icon: ShieldCheck,
@@ -25,7 +25,7 @@ const STEPS = [
   {
     Icon: Megaphone,
     title: 'Collect and keep people posted',
-    body: 'Donors give by card, bank transfer or mobile money, in their currency. Post updates as milestones land: campaigns with regular updates raise substantially more than ones that go quiet after launch.',
+    body: 'Donors give by card or bank transfer, in the campaign’s currency. Post updates as milestones land: campaigns with regular updates raise substantially more than ones that go quiet after launch.',
   },
   {
     Icon: Wallet,
@@ -56,7 +56,7 @@ export default function HowItWorksPage() {
       highlights={[
         { value: '4', label: 'Steps, start to payout', icon: Compass },
         { value: 'Once', label: 'Identity verification, for every campaign', icon: ShieldCheck },
-        { value: 'Any', label: 'Supported currency your donors use', icon: HeartHandshake },
+        { value: '2', label: 'Currencies: US dollar and euro', icon: HeartHandshake },
         { value: 'Net', label: 'Amount confirmed before you request it', icon: Wallet },
       ]}
       sections={[

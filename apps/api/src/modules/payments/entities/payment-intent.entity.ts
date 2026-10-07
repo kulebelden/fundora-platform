@@ -44,6 +44,14 @@ export class PaymentIntent {
   @Column({ type: 'char', length: 3 })
   currency!: string;
 
+  /**
+   * Platform fee rate quoted when the intent was created, so the ledger charges
+   * what the donor was shown even if the fee changes before settlement. Null on
+   * intents from before the fee was editable; those were quoted at 5%.
+   */
+  @Column({ type: 'numeric', precision: 6, scale: 4, nullable: true })
+  platformFeeRate!: string | null;
+
   @Column({ type: 'enum', enum: PaymentChannel, enumName: 'payment_channel' })
   channel!: PaymentChannel;
 

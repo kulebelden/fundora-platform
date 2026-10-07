@@ -39,7 +39,7 @@ const PRINCIPLES = [
   {
     Icon: Scale,
     title: 'No surprises at the end',
-    body: 'Fees are shown before a payout is confirmed, not deducted afterwards. Medical and charitable causes pay no platform fee at all.',
+    body: 'Every fee is shown before money moves, not deducted afterwards: the platform fee before a donation is made, the service fee before a payout is confirmed.',
     accent: 'bg-warm/15 text-[#8a5200]',
   },
 ];
@@ -66,21 +66,21 @@ export default function AboutPage() {
       sections={[
         {
           heading: 'Why we built it',
-          body: 'Across East Africa and beyond, the fastest way to fund an emergency is still a group chat and a mobile money number. It works, and it is also where trust breaks down: no receipts, no record, no way for a donor a continent away to see what happened next. HopeNest keeps the speed and adds the paper trail.',
+          body: 'When people come together to fund an emergency, trust depends on clear records: receipts, a visible ledger and updates donors can follow. HopeNest makes that paper trail part of every campaign.',
         },
         {
           heading: 'How it works in practice',
           bullets: [
             'An organiser drafts a campaign, sets a goal in their own currency and submits it for review.',
             'Identity verification runs once and unlocks withdrawals for every campaign that person runs.',
-            'Donors give in their own currency, by card, bank transfer or mobile money.',
+            'Donors give in their own currency by card or bank transfer.',
             'The organiser requests a payout to a SWIFT or IBAN account, seeing the fee and net amount before confirming.',
             'Every one of those movements lands in the ledger, where both sides read the same numbers.',
           ],
         },
         {
           heading: 'Who runs HopeNest',
-          body: 'HopeNest is run by a small team of engineers, finance operators and community moderators across East Africa and Europe. Campaign review and support are staffed by people, not queues — the same people who answer the support line decide whether a campaign goes live.',
+          body: 'HopeNest is run by a distributed team of engineers, finance operators and community moderators serving fundraisers across the United States and the euro area. Campaign review and support are staffed by people, not queues.',
         },
       ]}
       cta={{

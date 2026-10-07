@@ -2,6 +2,7 @@ import {
   Check,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -75,6 +76,21 @@ export class Campaign {
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
+
+  /**
+   * Set when a super admin deletes the campaign. TypeORM leaves archived rows
+   * out of every repository and query-builder read unless `withDeleted` is set;
+   * raw SQL must filter on it by hand. The row stays because its ledger
+   * entries are immutable.
+   */
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  deletedById!: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  deletionReason!: string | null;
 
   @OneToOne(() => CampaignWallet, (wallet) => wallet.campaign)
   wallet?: CampaignWallet;

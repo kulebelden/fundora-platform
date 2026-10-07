@@ -9,6 +9,7 @@
   "scripts": {
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "dev": "pnpm run --parallel dev:api dev:web",
     "dev:api": "pnpm --filter @fundora/api start:dev",
     "dev:web": "pnpm --filter @fundora/web dev",
     "build": "pnpm -r build",

@@ -29,6 +29,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatNumber, fundedPercent } from '@/lib/currency';
+import { usePlatformFeeLabel } from '@/lib/queries';
 import type { CampaignSummary } from '@/lib/types';
 
 export interface MedicalSubCategory {
@@ -200,6 +201,7 @@ function StatTile({
 }
 
 function CategoryHero({ category }: { category: MedicalCategory }) {
+  const fee = usePlatformFeeLabel();
   const percent = fundedPercent(category.totalRaised, category.totalTarget);
   const Icon = ICON_MAP[category.icon] ?? Activity;
 
@@ -213,9 +215,11 @@ function CategoryHero({ category }: { category: MedicalCategory }) {
                 <Icon className="h-3.5 w-3.5" />
                 {category.name}
               </Badge>
-              <Badge variant="outline" className="border-white/25 text-white">
-                0% Platform Fee
-              </Badge>
+              {fee ? (
+                <Badge variant="outline" className="border-white/25 text-white">
+                  {fee} platform fee
+                </Badge>
+              ) : null}
               <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
                 <Megaphone className="h-3 w-3" />
                 Urgent Needs
@@ -335,7 +339,7 @@ export function MedicalHubClient({
 }) {
   const [activeCategory, setActiveCategory] = React.useState<string | null>(categorySlug ?? null);
   const [activeSub, setActiveSub] = React.useState<string | null>(subCategorySlug ?? null);
-  const [query, setQuery] = React.useState('');
+  const fee = usePlatformFeeLabel();
 
   const selectedCategory = React.useMemo(
     () => MEDICAL_CATEGORIES.find((c) => c.slug === activeCategory) ?? null,
@@ -351,7 +355,7 @@ export function MedicalHubClient({
 
   return (
     <>
-      <SiteHeader query={query} onQueryChange={setQuery} />
+      <SiteHeader />
 
       <main id="main">
         {/* -------------------------------------------------- hero */}
@@ -359,7 +363,7 @@ export function MedicalHubClient({
           variant="aurora"
           tone="emerald"
           image={(categorySlug && MEDICAL_HERO_IMAGES[categorySlug]) || HERO_IMAGES.medical}
-          eyebrow="Medical causes · 0% platform fee"
+          eyebrow="Medical causes · Verified before going live"
           eyebrowIcon={HeartPulse}
           title="Health. Healing."
           accent="Hope."
@@ -374,7 +378,7 @@ export function MedicalHubClient({
             { value: '606', label: 'Medical campaigns', icon: HeartPulse, tone: 'success' },
             { value: '$8.5M', label: 'Total raised', icon: Wallet, tone: 'warm' },
             { value: '100%', label: 'Verified causes', icon: ShieldCheck },
-            { value: '0%', label: 'Platform fee', icon: Megaphone, tone: 'accent' },
+            { value: fee ?? '—', label: 'Platform fee', icon: Megaphone, tone: 'accent' },
           ]}
         />
 

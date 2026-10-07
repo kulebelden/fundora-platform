@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Banknote,
+  Clock,
   ExternalLink,
   Hourglass,
   Loader2,
@@ -15,6 +16,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  type LucideIcon,
 } from 'lucide-react';
 import { DonationTrendChart } from '@/components/donation-trend-chart';
 import { PostUpdateModal } from '@/components/post-update-modal';
@@ -32,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { apiErrorMessage } from '@/lib/api';
-import { formatDate, formatMoney, formatNumber, fundedPercent, timeAgo } from '@/lib/currency';
+import { daysRemaining, formatDate, formatMoney, formatNumber, fundedPercent, timeAgo } from '@/lib/currency';
 import { WITHDRAWAL_FEE_LABEL } from '@/lib/fees';
 import {
   useCampaignById,
@@ -43,6 +45,7 @@ import {
 } from '@/lib/queries';
 import { isNotFound, isUnauthorized } from '@/lib/api';
 import type { DonationFeedItem, WithdrawalRequestView } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const CHANNEL_LABEL: Record<string, string> = {
   CARD: 'Card',
@@ -67,6 +70,20 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
 
   const [withdrawOpen, setWithdrawOpen] = React.useState(false);
   const [updateOpen, setUpdateOpen] = React.useState(false);
+
+  // Phones: once the banner and its actions scroll away, a bottom bar takes over.
+  // Re-attached every render because the banner only mounts after loading.
+  const bannerRef = React.useRef<HTMLDivElement | null>(null);
+  const [bannerVisible, setBannerVisible] = React.useState(true);
+  React.useEffect(() => {
+    const node = bannerRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setBannerVisible(entry.isIntersecting), {
+      rootMargin: '-64px 0px 0px 0px',
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  });
 
   const isLoading = meLoading || campaignLoading;
 
@@ -124,6 +141,7 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
   const donorCount = campaign.donorCount;
   const averageDonation = donorCount > 0 ? grossRaised / donorCount : 0;
   const percent = fundedPercent(campaign.raisedAmount, campaign.targetAmount);
+  const days = daysRemaining(campaign.endDate);
 
   const campaignWithdrawals = (withdrawals ?? []).filter(
     (withdrawal) => withdrawal.campaignId === campaignId,
@@ -147,106 +165,103 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
     <>
       <SiteHeader />
 
-      <main id="main" className="container py-8">
+      <main id="main" className="container pb-28 pt-4 sm:pb-10 sm:pt-8">
         <Link
           href="/dashboard/campaigns"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="-ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Your campaigns
         </Link>
 
         {/* -------------------------------------------------- top banner */}
-        <Card className="brand-gradient hero-glow relative mt-4 overflow-hidden border-0 p-7">
-          <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <CampaignStatusBadge status={campaign.status} />
-                <Badge variant="outline" className="border-white/25 text-white">
-                  {campaign.category?.name ?? 'Cause'}
-                </Badge>
-                <Badge variant="outline" className="border-white/25 text-white">
-                  {currency}
-                </Badge>
-              </div>
-
-              <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl">
-                {campaign.title}
-              </h1>
-              <p className="mt-1.5 text-sm text-white/60">
-                Created {formatDate(campaign.createdAt)} · Updated {timeAgo(campaign.updatedAt)}
-              </p>
-
-              <div className="mt-6 max-w-lg">
-                <div className="flex items-baseline justify-between text-white">
-                  <span className="tabular text-2xl font-extrabold">
-                    {formatMoney(grossRaised, currency, { hideFraction: true })}
-                  </span>
-                  <span className="tabular text-sm text-white/60">
-                    of {formatMoney(campaign.targetAmount, currency, { hideFraction: true })}
-                  </span>
+        <div ref={bannerRef}>
+          <Card className="brand-gradient hero-glow relative mt-2 overflow-hidden rounded-3xl border-0 p-5 shadow-lift sm:mt-4 sm:p-7">
+            <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CampaignStatusBadge status={campaign.status} />
+                  <Badge variant="outline" className="border-white/25 text-white">
+                    {campaign.category?.name ?? 'Cause'}
+                  </Badge>
+                  <Badge variant="outline" className="border-white/25 text-white">
+                    {currency}
+                  </Badge>
                 </div>
-                <Progress
-                  value={percent}
-                  className="mt-2.5 h-2.5 bg-white/15"
-                  aria-label={`${Math.round(percent)} percent funded`}
-                />
+
+                <h1 className="mt-3 line-clamp-3 text-xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl">
+                  {campaign.title}
+                </h1>
+                <p className="mt-1.5 text-xs text-white/60 sm:text-sm">
+                  Created {formatDate(campaign.createdAt)} · Updated {timeAgo(campaign.updatedAt)}
+                </p>
+
+                <div className="mt-5 max-w-lg sm:mt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/60">Raised</p>
+                  <div className="flex items-baseline justify-between gap-3 text-white">
+                    <span className="tabular text-[2rem] font-extrabold leading-tight tracking-tight sm:text-4xl">
+                      {formatMoney(grossRaised, currency, { hideFraction: true })}
+                    </span>
+                    <span className="tabular shrink-0 text-sm text-white/60">
+                      of {formatMoney(campaign.targetAmount, currency, { hideFraction: true })}
+                    </span>
+                  </div>
+                  <Progress
+                    value={percent}
+                    className="mt-2.5 h-2.5 bg-white/15"
+                    aria-label={`${Math.round(percent)} percent funded`}
+                  />
+                  <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/75">
+                    <span className="font-bold text-white">{Math.round(percent)}% funded</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      {formatNumber(donorCount)} {donorCount === 1 ? 'supporter' : 'supporters'}
+                    </span>
+                    {days !== null && campaign.status === 'LIVE' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {days === 0 ? 'Ends today' : `${days} ${days === 1 ? 'day' : 'days'} left`}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
               </div>
+
+              <PwaInstallButton size="lg" className="hidden shrink-0 sm:inline-flex" />
             </div>
 
-            <PwaInstallButton size="lg" className="shrink-0" />
-          </div>
+            {/* Quick actions: equal tiles on a phone, a button row from `sm` up. */}
+            <div className="relative z-10 mt-5 grid grid-cols-3 gap-2 border-t border-white/15 pt-5 sm:mt-7 sm:flex sm:flex-wrap sm:gap-2.5 sm:pt-6">
+              <QuickAction
+                icon={Megaphone}
+                label="Post update"
+                badge={updates?.length ? String(updates.length) : undefined}
+                onClick={() => setUpdateOpen(true)}
+              />
+              <QuickAction icon={Share2} label="Share" onClick={share} />
+              <QuickAction icon={Banknote} label="Withdraw" primary onClick={() => setWithdrawOpen(true)} />
 
-          {/* quick actions */}
-          <div className="relative z-10 mt-7 flex flex-wrap gap-2.5 border-t border-white/15 pt-6">
-            <Button
-              variant="outline"
-              className="border-white/25 bg-white/5 text-white hover:bg-white/15 hover:text-white"
-              onClick={() => setUpdateOpen(true)}
-            >
-              <Megaphone className="h-4 w-4" />
-              Post Update
-              {updates?.length ? (
-                <span className="tabular ml-0.5 text-xs text-white/60">
-                  ({updates.length})
-                </span>
-              ) : null}
-            </Button>
-
-            <Button
-              variant="outline"
-              className="border-white/25 bg-white/5 text-white hover:bg-white/15 hover:text-white"
-              onClick={share}
-            >
-              <Share2 className="h-4 w-4" />
-              Share Campaign
-            </Button>
-
-            <Button variant="success" onClick={() => setWithdrawOpen(true)}>
-              <Banknote className="h-4 w-4" />
-              Request Withdrawal
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="ml-auto text-white/80 hover:bg-white/10 hover:text-white"
-              asChild
-            >
-              <Link href={`/campaigns/${campaign.slug}`}>
-                View public page
-                <ExternalLink className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </Card>
+              <Button
+                variant="ghost"
+                className="col-span-3 mt-1 text-white/80 hover:bg-white/10 hover:text-white sm:col-span-1 sm:ml-auto sm:mt-0"
+                asChild
+              >
+                <Link href={`/campaigns/${campaign.slug}`}>
+                  View public page
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
 
         {/* ------------------------------------------- financial overview */}
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4 xl:grid-cols-4">
           <StatCard
             Icon={TrendingUp}
-            label="Total raised (gross)"
+            label="Raised (gross)"
             value={formatMoney(grossRaised, currency)}
-            sub={`${Math.round(percent)}% of goal · before fees`}
+            sub="Before fees"
             accent="bg-success/12 text-success"
             valueClassName="text-success"
           />
@@ -254,32 +269,32 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
             Icon={Wallet}
             label="Cleared balance"
             value={formatMoney(cleared, currency)}
-            sub="Available to withdraw now"
+            sub="Ready to withdraw"
             accent="bg-accent/12 text-accent"
           />
           <StatCard
             Icon={Hourglass}
-            label="Pending settlement"
+            label="In review"
             value={formatMoney(pending, currency)}
-            sub="Reserved against withdrawals in review"
+            sub="Held for payouts being checked"
             accent="bg-warm/15 text-[#8a5200]"
           />
           <StatCard
             Icon={Users}
             label="Donors"
             value={formatNumber(donorCount)}
-            sub={`${formatMoney(averageDonation, currency)} average donation`}
+            sub={`${formatMoney(averageDonation, currency, { hideFraction: true })} average`}
             accent="bg-primary/10 text-primary"
           />
         </div>
 
         {/* -------------------------------------------- chart + payouts */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Card className="p-6">
+        <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <Card className="min-w-0 p-4 sm:p-6">
             <DonationTrendChart donations={donations} currency={currency} />
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-bold">Payouts</h3>
               <Badge variant="warm">{WITHDRAWAL_FEE_LABEL} fee</Badge>
@@ -313,7 +328,7 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
         </div>
 
         {/* ------------------------------------------------ transactions */}
-        <Card className="mt-6 p-6">
+        <Card className="mt-4 p-4 sm:mt-6 sm:p-6">
           <Tabs defaultValue="donors">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="font-bold">Recent activity</h3>
@@ -334,7 +349,32 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
         </Card>
       </main>
 
-      <SiteFooter />
+      <SiteFooter cta={false} />
+
+      {/* Phones: the two actions a fundraiser reaches for most, kept in reach while scrolling. */}
+      <div
+        aria-hidden={bannerVisible}
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md transition-transform duration-300 sm:hidden',
+          bannerVisible ? 'pointer-events-none translate-y-full' : 'translate-y-0',
+        )}
+      >
+        <div className="flex gap-2.5">
+          <Button variant="outline" className="h-12 flex-1" onClick={share} tabIndex={bannerVisible ? -1 : 0}>
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+          <Button
+            variant="success"
+            className="h-12 flex-[1.6]"
+            onClick={() => setWithdrawOpen(true)}
+            tabIndex={bannerVisible ? -1 : 0}
+          >
+            <Banknote className="h-4 w-4" />
+            {Number(cleared) > 0 ? `Withdraw · ${formatMoney(cleared, currency, { hideFraction: true })}` : 'Withdraw'}
+          </Button>
+        </div>
+      </div>
 
       <WithdrawalModal
         campaignId={campaignId}
@@ -350,6 +390,43 @@ export function CampaignDashboardClient({ campaignId }: { campaignId: string }) 
         onOpenChange={setUpdateOpen}
       />
     </>
+  );
+}
+
+/** Banner action: an icon tile on a phone, a regular button from `sm` up. */
+function QuickAction({
+  icon: Icon,
+  label,
+  badge,
+  primary,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  badge?: string;
+  primary?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'relative flex min-h-[4.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+        'sm:min-h-10 sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:text-sm',
+        primary
+          ? 'bg-success text-white shadow-lg shadow-success/25 hover:bg-success/90'
+          : 'border border-white/20 bg-white/10 text-white hover:bg-white/20',
+      )}
+    >
+      <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
+      {label}
+      {badge ? (
+        <span className="tabular absolute right-2 top-2 rounded-full bg-white/20 px-1.5 text-[10px] sm:static sm:bg-transparent sm:px-0 sm:text-xs sm:text-white/60">
+          {badge}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -395,8 +472,31 @@ function TransactionsTable({
     );
   }
 
+  const rows = donations.slice(0, 25);
+
   return (
-    <div className="-mx-6 overflow-x-auto px-6">
+    <>
+      {/* Phones: one line per gift instead of a table that scrolls sideways. */}
+      <ul className="divide-y sm:hidden">
+        {rows.map((donation, index) => (
+          <li key={donation.providerReference ?? `${donation.createdAt}-${index}`} className="flex items-center gap-3 py-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/10 text-sm font-bold text-success">
+              {donation.donorName.trim().charAt(0).toUpperCase() || '?'}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{donation.donorName}</span>
+              <span className="block text-xs text-muted-foreground">
+                {CHANNEL_LABEL[donation.channel] ?? donation.channel} · {timeAgo(donation.createdAt)}
+              </span>
+            </span>
+            <span className="tabular shrink-0 text-sm font-bold text-success">
+              +{formatMoney(donation.amount, donation.currency || currency)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="-mx-6 hidden overflow-x-auto px-6 sm:block">
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -409,7 +509,7 @@ function TransactionsTable({
           </tr>
         </thead>
         <tbody className="divide-y">
-          {donations.slice(0, 25).map((donation, index) => (
+          {rows.map((donation, index) => (
             <tr key={donation.providerReference ?? `${donation.createdAt}-${index}`}>
               <td className="py-3 font-medium">{donation.donorName}</td>
               <td className="py-3 font-mono text-xs text-muted-foreground">
@@ -429,7 +529,8 @@ function TransactionsTable({
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -444,7 +545,14 @@ function WithdrawalsTable({ withdrawals }: { withdrawals: WithdrawalRequestView[
   }
 
   return (
-    <div className="-mx-6 overflow-x-auto px-6">
+    <>
+      <ul className="space-y-3 sm:hidden">
+        {withdrawals.map((withdrawal) => (
+          <WithdrawalRow key={withdrawal.id} withdrawal={withdrawal} />
+        ))}
+      </ul>
+
+      <div className="-mx-6 hidden overflow-x-auto px-6 sm:block">
       <table className="w-full min-w-[680px] text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -482,7 +590,8 @@ function WithdrawalsTable({ withdrawals }: { withdrawals: WithdrawalRequestView[
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -521,8 +630,8 @@ function DashboardSkeleton() {
     <>
       <SiteHeader />
       <main id="main" className="container space-y-6 py-8">
-        <Skeleton className="h-56 w-full rounded-xl" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Skeleton className="h-72 w-full rounded-3xl sm:h-56" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={index} className="h-32 rounded-xl" />
           ))}

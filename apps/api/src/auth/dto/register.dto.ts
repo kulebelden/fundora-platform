@@ -22,7 +22,7 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^\+[1-9]\d{7,14}$/, {
-    message: 'Phone number must use international format, for example +256...',
+    message: 'Phone number must use international format, for example +12025550143',
   })
   phoneNumber!: string;
 
