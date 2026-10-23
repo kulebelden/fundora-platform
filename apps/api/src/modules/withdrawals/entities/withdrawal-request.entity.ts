@@ -15,19 +15,21 @@ import { Campaign } from '../../campaigns/entities/campaign.entity';
 import { User } from '../../identity/entities/user.entity';
 
 export interface BankAccountDetails {
+  /** Absent on requests made before US payouts existed; those are international. */
+  method?: 'us_bank' | 'international';
   bankName: string;
   accountNumber: string;
+  accountName: string;
+  /* International (SWIFT) */
   swiftBic?: string;
   iban?: string;
-  accountName: string;
   country?: string;
+  /* US bank (ACH / wire) */
   accountHolder?: string;
-  accountType?: string;
-  routingNumber?: string;
+  accountType?: 'checking' | 'savings';
   achRouting?: string;
+  wireRouting?: string;
   bankAddress?: string;
-  writeRouting?: string;
-  method?: 'wire' | 'ach';
 }
 
 @Entity({ name: 'withdrawal_requests' })

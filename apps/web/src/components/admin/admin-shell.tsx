@@ -164,7 +164,7 @@ function Sidebar({
 }) {
   return (
     <div className="flex h-full flex-col bg-[#001a40] text-white">
-      <div className="px-5 pb-5 pt-6">
+      <div className="px-5 pb-5 pt-[calc(1.5rem+env(safe-area-inset-top))]">
         <Link
           href="/admin"
           onClick={onNavigate}
@@ -314,7 +314,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Close menu"
-              className="absolute right-3 top-6 flex h-9 w-9 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+              className="absolute right-3 top-[calc(1.5rem+env(safe-area-inset-top))] flex h-9 w-9 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>
@@ -324,7 +324,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur-md">
+        <header className="sticky top-0 z-20 border-b bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <Button
               variant="ghost"

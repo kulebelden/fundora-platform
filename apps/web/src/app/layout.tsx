@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Fraunces, Playfair_Display, Plus_Jakarta_Sans, Sora, Space_Grotesk, Syne } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { PWA_SPLASH_SCRIPT, PwaSplash } from '@/components/brand/pwa-splash';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from './providers';
-import { SplashWrapper } from './splash-wrapper';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
@@ -103,6 +103,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={fontVariables} suppressHydrationWarning>
+      <head>
+        {/* Must run before first paint; see PwaSplash. */}
+        <script dangerouslySetInnerHTML={{ __html: PWA_SPLASH_SCRIPT }} />
+      </head>
       <body className="min-h-dvh font-sans">
         <a
           href="#main"
@@ -111,13 +115,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <Providers>
-          <SplashWrapper>
-            {children}
-            <Toaster />
-          </SplashWrapper>
+          {children}
+          <Toaster />
           <IosInstallPrompt />
+          <PwaSplash />
         </Providers>
       </body>
     </html>
   );
-}
+}
+

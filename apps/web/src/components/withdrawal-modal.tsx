@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { AlertTriangle, ArrowRight, Banknote, Landmark, Loader2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Banknote, Globe2, Landmark, Loader2, ShieldAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,46 +24,86 @@ import { apiErrorMessage } from '@/lib/api';
 import { COUNTRIES, fractionDigits, formatMoney } from '@/lib/currency';
 import { WITHDRAWAL_FEE_LABEL, previewWithdrawal } from '@/lib/fees';
 import { useKycStatus, useRequestWithdrawal } from '@/lib/queries';
-import type { KycStatus } from '@/lib/types';
+import type { BankAccountDetails, KycStatus } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 /** ISO 9362: 6 letters, 2 alphanumerics, and an optional 3-character branch code. */
 const SWIFT_BIC = /^[A-Za-z]{6}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?$/;
 const IBAN = /^[A-Za-z]{2}\d{2}[A-Za-z0-9]{11,30}$/;
 
+/** ABA routing number: 9 digits whose weighted sum (3, 7, 1 repeating) is a multiple of 10. */
+function isAbaRoutingNumber(value: string): boolean {
+  if (!/^\d{9}$/.test(value)) return false;
+  const d = value.split('').map(Number);
+  return (3 * (d[0] + d[3] + d[6]) + 7 * (d[1] + d[4] + d[7]) + (d[2] + d[5] + d[8])) % 10 === 0;
+}
+
 /**
  * Amount stays a string through validation. Coercing inside zod makes the schema's input
- * type `unknown`, which then fights useForm's generics for no benefit.
+ * type `unknown`, which then fights useForm's generics for no benefit. Which bank fields
+ * are required depends on the payout method, so those are checked in superRefine. The
+ * API applies the same rules.
  */
 function buildSchema(maxAmount: number) {
-  return z.object({
-    amount: z
-      .string()
-      .trim()
-      .min(1, 'Enter an amount')
-      .refine((value) => Number.isFinite(Number(value)), 'Enter a valid amount')
-      .refine((value) => Number(value) > 0, 'Amount must be greater than zero')
-      .refine((value) => Number(value) <= maxAmount, 'Amount exceeds your cleared balance'),
-    bankName: z.string().trim().min(2, 'Bank name is required').max(200),
-    accountName: z.string().trim().min(2, 'Account holder name is required').max(200),
-    accountNumber: z.string().trim().min(4, 'Account number is required').max(64),
-    swiftBic: z
-      .string()
-      .trim()
-      .regex(SWIFT_BIC, 'Enter a valid 8 or 11 character SWIFT/BIC'),
-    iban: z
-      .string()
-      .trim()
-      .optional()
-      .refine((value) => !value || IBAN.test(value.replace(/\s/g, '')), 'Enter a valid IBAN'),
-    country: z
-      .string()
-      .trim()
-      .optional()
-      .refine(
-        (value) => !value || COUNTRIES.some((country) => country.code === value.toUpperCase()),
-        'Choose a supported payout country',
-      ),
-  });
+  return z
+    .object({
+      method: z.enum(['us_bank', 'international']),
+      amount: z
+        .string()
+        .trim()
+        .min(1, 'Enter an amount')
+        .refine((value) => Number.isFinite(Number(value)), 'Enter a valid amount')
+        .refine((value) => Number(value) > 0, 'Amount must be greater than zero')
+        .refine((value) => Number(value) <= maxAmount, 'Amount exceeds your cleared balance'),
+      bankName: z.string().trim().min(2, 'Bank name is required').max(200),
+      accountNumber: z.string().trim().min(4, 'Account number is required').max(64),
+      // International (SWIFT)
+      accountName: z.string().trim().max(200).optional(),
+      swiftBic: z.string().trim().optional(),
+      iban: z.string().trim().optional(),
+      country: z.string().trim().optional(),
+      // US bank (ACH / wire)
+      accountHolder: z.string().trim().max(200).optional(),
+      accountType: z.enum(['checking', 'savings']).optional(),
+      achRouting: z.string().trim().optional(),
+      wireRouting: z.string().trim().optional(),
+      bankAddress: z.string().trim().max(300).optional(),
+    })
+    .superRefine((values, ctx) => {
+      const fail = (path: string, message: string) =>
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+      if (values.method === 'us_bank') {
+        if (!values.accountHolder || values.accountHolder.length < 2) {
+          fail('accountHolder', 'Account holder name is required');
+        }
+        if (!values.accountType) fail('accountType', 'Choose checking or savings');
+        if (!values.achRouting || !isAbaRoutingNumber(values.achRouting)) {
+          fail('achRouting', 'Enter a valid 9-digit ACH routing number');
+        }
+        if (!values.wireRouting || !isAbaRoutingNumber(values.wireRouting)) {
+          fail('wireRouting', 'Enter a valid 9-digit wire routing number');
+        }
+        if (!values.bankAddress || values.bankAddress.length < 5) {
+          fail('bankAddress', 'Bank address is required');
+        }
+        return;
+      }
+
+      if (!values.accountName || values.accountName.length < 2) {
+        fail('accountName', 'Account holder name is required');
+      }
+      if (!values.swiftBic || !SWIFT_BIC.test(values.swiftBic)) {
+        fail('swiftBic', 'Enter a valid 8 or 11 character SWIFT/BIC');
+      }
+      if (values.iban && !IBAN.test(values.iban.replace(/\s/g, ''))) {
+        fail('iban', 'Enter a valid IBAN');
+      }
+      const country = values.country?.toUpperCase();
+      if (country && !COUNTRIES.some((option) => option.code === country)) {
+        fail('country', 'Choose a supported payout country');
+      }
+    });
 }
 
 type FormValues = z.infer<ReturnType<typeof buildSchema>>;
@@ -99,13 +139,19 @@ export function WithdrawalModal({
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      method: 'us_bank',
       amount: '',
       bankName: '',
-      accountName: '',
       accountNumber: '',
+      accountName: '',
       swiftBic: '',
       iban: '',
       country: '',
+      accountHolder: '',
+      accountType: undefined,
+      achRouting: '',
+      wireRouting: '',
+      bankAddress: '',
     },
     mode: 'onBlur',
   });
@@ -118,6 +164,7 @@ export function WithdrawalModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const method = watch('method');
   const amountValue = Number(watch('amount'));
   const preview = previewWithdrawal(amountValue, zeroDecimal);
 
@@ -130,14 +177,7 @@ export function WithdrawalModal({
         campaignId,
         amount: Number(values.amount),
         currency,
-        bankDetails: {
-          bankName: values.bankName,
-          accountNumber: values.accountNumber,
-          swiftBic: values.swiftBic.toUpperCase(),
-          iban: values.iban ? values.iban.replace(/\s/g, '').toUpperCase() : undefined,
-          accountName: values.accountName,
-          country: values.country ? values.country.toUpperCase() : undefined,
-        },
+        bankDetails: toBankDetails(values),
       },
       {
         onSuccess: (data) => {
@@ -238,83 +278,178 @@ export function WithdrawalModal({
                 Bank account details
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  id="wd-bankName"
-                  label="Bank name"
-                  placeholder="Chase Bank"
-                  error={errors.bankName?.message}
-                  {...register('bankName')}
+              <div role="radiogroup" aria-label="Payout method" className="grid grid-cols-2 gap-2">
+                <MethodOption
+                  active={method === 'us_bank'}
+                  onSelect={() => setValue('method', 'us_bank')}
+                  icon={<Landmark className="h-4 w-4" />}
+                  title="US bank"
+                  subtitle="ACH or wire"
                 />
-                <Field
-                  id="wd-accountName"
-                  label="Account holder name"
-                  placeholder="As it appears on the account"
-                  error={errors.accountName?.message}
-                  {...register('accountName')}
+                <MethodOption
+                  active={method === 'international'}
+                  onSelect={() => setValue('method', 'international')}
+                  icon={<Globe2 className="h-4 w-4" />}
+                  title="International"
+                  subtitle="SWIFT / IBAN"
                 />
-                <Field
-                  id="wd-accountNumber"
-                  label="Account number"
-                  placeholder="9030001234567"
-                  error={errors.accountNumber?.message}
-                  {...register('accountNumber')}
-                />
-                <Field
-                  id="wd-swiftBic"
-                  label="SWIFT / BIC"
-                  placeholder="CHASUS33"
-                  error={errors.swiftBic?.message}
-                  className="uppercase"
-                  {...register('swiftBic')}
-                />
-                <Field
-                  id="wd-iban"
-                  label="IBAN"
-                  hint="Optional"
-                  placeholder="GB29NWBK60161331926819"
-                  error={errors.iban?.message}
-                  className="uppercase"
-                  {...register('iban')}
-                />
-                <div className="space-y-1.5">
-                  <Label htmlFor="wd-country" className="flex items-baseline gap-2">
-                    Bank country
-                    <span className="text-xs font-normal text-muted-foreground">
-                      Optional · supported markets only
-                    </span>
-                  </Label>
-                  <Select
-                    id="wd-country"
-                    value={watch('country') ?? ''}
-                    onChange={(event) => setValue('country', event.target.value || undefined, {
-                      shouldValidate: true,
-                    })}
-                    aria-invalid={Boolean(errors.country?.message)}
-                  >
-                    <option value="">Select a country</option>
-                    <optgroup label="United States dollar (USD)">
-                      {COUNTRIES.filter((country) => country.currency === 'USD').map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Euro (EUR)">
-                      {COUNTRIES.filter((country) => country.currency === 'EUR').map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </Select>
-                  {errors.country?.message ? (
-                    <p className="text-xs font-medium text-destructive">
-                      {errors.country.message}
-                    </p>
-                  ) : null}
-                </div>
               </div>
+
+              {method === 'us_bank' ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    id="wd-accountHolder"
+                    label="Account holder"
+                    placeholder="As it appears on the account"
+                    autoComplete="name"
+                    error={errors.accountHolder?.message}
+                    {...register('accountHolder')}
+                  />
+                  <Field
+                    id="wd-accountNumber"
+                    label="Account number"
+                    placeholder="000123456789"
+                    inputMode="numeric"
+                    error={errors.accountNumber?.message}
+                    {...register('accountNumber')}
+                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wd-accountType">Account type</Label>
+                    <Select
+                      id="wd-accountType"
+                      value={watch('accountType') ?? ''}
+                      onChange={(event) =>
+                        setValue(
+                          'accountType',
+                          (event.target.value || undefined) as FormValues['accountType'],
+                          { shouldValidate: true },
+                        )
+                      }
+                      aria-invalid={Boolean(errors.accountType?.message)}
+                    >
+                      <option value="">Select account type</option>
+                      <option value="checking">Checking</option>
+                      <option value="savings">Savings</option>
+                    </Select>
+                    {errors.accountType?.message ? (
+                      <p className="text-xs font-medium text-destructive">{errors.accountType.message}</p>
+                    ) : null}
+                  </div>
+                  <Field
+                    id="wd-achRouting"
+                    label="ACH routing number"
+                    placeholder="9 digits"
+                    inputMode="numeric"
+                    maxLength={9}
+                    className="tabular"
+                    error={errors.achRouting?.message}
+                    {...register('achRouting')}
+                  />
+                  <Field
+                    id="wd-bankName"
+                    label="Bank name"
+                    placeholder="Chase Bank"
+                    error={errors.bankName?.message}
+                    {...register('bankName')}
+                  />
+                  <Field
+                    id="wd-bankAddress"
+                    label="Bank address"
+                    placeholder="270 Park Avenue, New York, NY 10017"
+                    error={errors.bankAddress?.message}
+                    {...register('bankAddress')}
+                  />
+                  <Field
+                    id="wd-wireRouting"
+                    label="Wire routing number"
+                    hint="Often the same as ACH"
+                    placeholder="9 digits"
+                    inputMode="numeric"
+                    maxLength={9}
+                    className="tabular"
+                    error={errors.wireRouting?.message}
+                    {...register('wireRouting')}
+                  />
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    id="wd-bankName"
+                    label="Bank name"
+                    placeholder="Barclays"
+                    error={errors.bankName?.message}
+                    {...register('bankName')}
+                  />
+                  <Field
+                    id="wd-accountName"
+                    label="Account holder name"
+                    placeholder="As it appears on the account"
+                    error={errors.accountName?.message}
+                    {...register('accountName')}
+                  />
+                  <Field
+                    id="wd-accountNumber"
+                    label="Account number"
+                    placeholder="9030001234567"
+                    error={errors.accountNumber?.message}
+                    {...register('accountNumber')}
+                  />
+                  <Field
+                    id="wd-swiftBic"
+                    label="SWIFT / BIC"
+                    placeholder="BARCGB22"
+                    error={errors.swiftBic?.message}
+                    className="uppercase"
+                    {...register('swiftBic')}
+                  />
+                  <Field
+                    id="wd-iban"
+                    label="IBAN"
+                    hint="Optional"
+                    placeholder="GB29NWBK60161331926819"
+                    error={errors.iban?.message}
+                    className="uppercase"
+                    {...register('iban')}
+                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wd-country" className="flex items-baseline gap-2">
+                      Bank country
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Optional · supported markets only
+                      </span>
+                    </Label>
+                    <Select
+                      id="wd-country"
+                      value={watch('country') ?? ''}
+                      onChange={(event) => setValue('country', event.target.value || undefined, {
+                        shouldValidate: true,
+                      })}
+                      aria-invalid={Boolean(errors.country?.message)}
+                    >
+                      <option value="">Select a country</option>
+                      <optgroup label="United States dollar (USD)">
+                        {COUNTRIES.filter((country) => country.currency === 'USD').map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Euro (EUR)">
+                        {COUNTRIES.filter((country) => country.currency === 'EUR').map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </Select>
+                    {errors.country?.message ? (
+                      <p className="text-xs font-medium text-destructive">
+                        {errors.country.message}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
 
             <p className="flex items-start gap-2 rounded-lg bg-accent/5 p-3 text-xs text-muted-foreground">
@@ -350,6 +485,74 @@ export function WithdrawalModal({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Sends only the chosen rail's fields, matching what the API stores. */
+function toBankDetails(values: FormValues): BankAccountDetails {
+  if (values.method === 'us_bank') {
+    const holder = values.accountHolder ?? '';
+    return {
+      method: 'us_bank',
+      bankName: values.bankName,
+      accountNumber: values.accountNumber,
+      accountName: holder,
+      accountHolder: holder,
+      accountType: values.accountType,
+      achRouting: values.achRouting,
+      wireRouting: values.wireRouting,
+      bankAddress: values.bankAddress,
+    };
+  }
+
+  return {
+    method: 'international',
+    bankName: values.bankName,
+    accountNumber: values.accountNumber,
+    accountName: values.accountName ?? '',
+    swiftBic: values.swiftBic?.toUpperCase(),
+    iban: values.iban ? values.iban.replace(/\s/g, '').toUpperCase() : undefined,
+    country: values.country ? values.country.toUpperCase() : undefined,
+  };
+}
+
+function MethodOption({
+  active,
+  onSelect,
+  icon,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onSelect: () => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onSelect}
+      className={cn(
+        'flex items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+        active ? 'border-success bg-success/10' : 'hover:border-success/50 hover:bg-secondary',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+          active ? 'bg-success text-white' : 'bg-secondary text-muted-foreground',
+        )}
+      >
+        {icon}
+      </span>
+      <span>
+        <span className="block text-sm font-bold">{title}</span>
+        <span className="block text-xs text-muted-foreground">{subtitle}</span>
+      </span>
+    </button>
   );
 }
 

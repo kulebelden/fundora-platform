@@ -144,13 +144,24 @@ export interface AuthResponse {
   refreshTokenExpiresAt: string;
 }
 
+export type PayoutMethod = 'us_bank' | 'international';
+
 export interface BankAccountDetails {
+  /** Absent on requests made before US payouts existed; those are international. */
+  method?: PayoutMethod;
   bankName: string;
   accountNumber: string;
-  swiftBic: string;
-  iban?: string;
   accountName: string;
+  /* International (SWIFT) */
+  swiftBic?: string;
+  iban?: string;
   country?: string;
+  /* US bank (ACH / wire) */
+  accountHolder?: string;
+  accountType?: 'checking' | 'savings';
+  achRouting?: string;
+  wireRouting?: string;
+  bankAddress?: string;
 }
 
 export interface WithdrawalRequestView {

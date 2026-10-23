@@ -9,6 +9,7 @@ import {
 import { api, isUnauthorized } from './api';
 import { queryKeys } from './query-keys';
 import type {
+  BankAccountDetails,
   AdminOverview,
   ContactMessageInput,
   ContactMessageView,
@@ -339,14 +340,7 @@ export function useRequestWithdrawal() {
       campaignId: string;
       amount: number;
       currency: string;
-      bankDetails: {
-        bankName: string;
-        accountNumber: string;
-        swiftBic: string;
-        iban?: string;
-        accountName: string;
-        country?: string;
-      };
+      bankDetails: BankAccountDetails;
     }) => {
       const { data } = await api.post<WithdrawalRequestView>('/withdrawals/request', payload);
       return data;

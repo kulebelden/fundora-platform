@@ -571,7 +571,9 @@ function WithdrawalsTable({ withdrawals }: { withdrawals: WithdrawalRequestView[
               <td className="py-3">
                 <span className="font-medium">{withdrawal.bankAccountDetails?.bankName ?? '—'}</span>
                 <span className="block font-mono text-xs text-muted-foreground">
-                  {withdrawal.bankAccountDetails?.swiftBic ?? ''}
+                  {withdrawal.bankAccountDetails?.method === 'us_bank'
+                    ? `ACH ${withdrawal.bankAccountDetails.achRouting ?? ''}`
+                    : (withdrawal.bankAccountDetails?.swiftBic ?? '')}
                 </span>
               </td>
               <td className="tabular py-3 text-right">

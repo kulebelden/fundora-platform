@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils';
 const DISMISS_KEY = 'hopenest-ios-install-dismissed-at';
 /** After "Not now", stay quiet this long before asking again. */
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
-/** Let the splash screen finish before the sheet slides in. */
-const SHOW_DELAY_MS = 3500;
+/** Give the page a moment to settle before the sheet slides in. */
+const SHOW_DELAY_MS = 2500;
 
 function readDismissedAt(): number {
   try {

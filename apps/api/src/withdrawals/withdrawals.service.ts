@@ -15,9 +15,12 @@ import { LedgerService } from '../ledger/ledger.service';
 import { CampaignWallet } from '../modules/campaigns/entities/campaign-wallet.entity';
 import { Campaign } from '../modules/campaigns/entities/campaign.entity';
 import { KycProfile } from '../modules/kyc/entities/kyc-profile.entity';
-import { WithdrawalRequest } from '../modules/withdrawals/entities/withdrawal-request.entity';
+import {
+  BankAccountDetails,
+  WithdrawalRequest,
+} from '../modules/withdrawals/entities/withdrawal-request.entity';
 import { BANK_PAYOUT_ADAPTER, IBankPayoutAdapter } from './adapters/bank-payout.adapter';
-import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { BankDetailsDto, CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { ReviewWithdrawalDto } from './dto/review-withdrawal.dto';
 
 @Injectable()
@@ -95,7 +98,7 @@ export class WithdrawalsService {
           serviceFee: amounts.fee,
           netAmount: amounts.net,
           currency: campaign.currency,
-          bankAccountDetails: { ...dto.bankDetails },
+          bankAccountDetails: payoutDestination(dto.bankDetails),
           status: WithdrawalStatus.PENDING_REVIEW,
         }),
       );
@@ -253,4 +256,33 @@ export class WithdrawalsService {
     }
     return withdrawal;
   }
+}
+
+/** Keeps only the fields of the chosen payout rail, so finance never sees a mix of both. */
+function payoutDestination(details: BankDetailsDto): BankAccountDetails {
+  const common = {
+    bankName: details.bankName,
+    accountNumber: details.accountNumber,
+    accountName: details.accountName,
+  };
+
+  if (details.method === 'us_bank') {
+    return {
+      ...common,
+      method: 'us_bank',
+      accountHolder: details.accountHolder,
+      accountType: details.accountType,
+      achRouting: details.achRouting,
+      wireRouting: details.wireRouting,
+      bankAddress: details.bankAddress,
+    };
+  }
+
+  return {
+    ...common,
+    method: 'international',
+    swiftBic: details.swiftBic,
+    iban: details.iban,
+    country: details.country,
+  };
 }

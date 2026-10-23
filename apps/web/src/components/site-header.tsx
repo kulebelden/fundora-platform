@@ -116,9 +116,12 @@ export function SiteHeader() {
 
   return (
     <>
-    {/* Phones pin the header with `fixed`, which takes it out of the flow; this keeps its space. */}
-    <div aria-hidden className="h-16 lg:hidden" />
-    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/85 backdrop-blur-md lg:sticky">
+    {/*
+      Phones pin the header with `fixed`, which takes it out of the flow; this keeps its space.
+      The installed iOS app draws under the status bar, so both also reserve the safe area.
+    */}
+    <div aria-hidden className="h-[calc(4rem+env(safe-area-inset-top))] lg:hidden" />
+    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:sticky">
       <div className="container flex h-16 items-center gap-3 overflow-visible">
         <Link href="/" className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Logo priority />
@@ -386,7 +389,7 @@ export function SiteHeader() {
       {mobileOpen ? (
         <div
           id="mobile-menu"
-          className="mobile-menu-sheet fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto overscroll-contain border-t bg-background lg:hidden"
+          className="mobile-menu-sheet fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-40 overflow-y-auto overscroll-contain border-t bg-background lg:hidden"
         >
           <div className="container space-y-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <button

@@ -252,10 +252,22 @@ function WithdrawalCard({
               <p className="tabular text-xs">
                 Account {reveal ? String(bank.accountNumber ?? '—') : mask(bank.accountNumber)}
               </p>
-              <p className="tabular text-xs text-muted-foreground">
-                SWIFT {String(bank.swiftBic ?? '—')}
-                {bank.iban ? ` · IBAN ${reveal ? String(bank.iban) : mask(bank.iban)}` : ''}
-              </p>
+              {bank.method === 'us_bank' ? (
+                <>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    US {String(bank.accountType ?? '')} account
+                  </p>
+                  <p className="tabular text-xs text-muted-foreground">
+                    ACH {String(bank.achRouting ?? '—')} · Wire {String(bank.wireRouting ?? '—')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{String(bank.bankAddress ?? '')}</p>
+                </>
+              ) : (
+                <p className="tabular text-xs text-muted-foreground">
+                  SWIFT {String(bank.swiftBic ?? '—')}
+                  {bank.iban ? ` · IBAN ${reveal ? String(bank.iban) : mask(bank.iban)}` : ''}
+                </p>
+              )}
             </div>
           </div>
 
