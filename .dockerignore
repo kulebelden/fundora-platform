@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/*.tsbuildinfo
+apps/api/uploads
+.git
+.kilo
+apps(web)
+deploy/.env
+/*.png

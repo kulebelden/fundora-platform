@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Share, SquarePlus, Smartphone } from 'lucide-react';
+import { Check, Smartphone } from 'lucide-react';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { IosInstallSteps, IosOpenInSafariSteps } from '@/components/ios-install-prompt';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -51,7 +52,7 @@ export function PwaInstallButton({
   }
 
   const handleClick = async () => {
-    if (mode === 'ios-manual') {
+    if (mode === 'ios-manual' || mode === 'ios-open-in-safari') {
       setShowIosHelp(true);
       return;
     }
@@ -95,30 +96,13 @@ export function PwaInstallButton({
           <DialogHeader>
             <DialogTitle>Add HopeNest to your Home Screen</DialogTitle>
             <DialogDescription>
-              iOS installs apps straight from Safari. It takes two taps.
+              {mode === 'ios-open-in-safari'
+                ? 'This in-app browser cannot install apps. Open the page in Safari first.'
+                : 'iOS installs web apps from the Share menu. It takes three taps.'}
             </DialogDescription>
           </DialogHeader>
 
-          <ol className="space-y-4 text-sm">
-            <li className="flex gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                1
-              </span>
-              <span className="pt-1">
-                Tap the <Share className="inline h-4 w-4 align-text-bottom" />{' '}
-                <strong>Share</strong> button in Safari&apos;s toolbar.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                2
-              </span>
-              <span className="pt-1">
-                Choose <SquarePlus className="inline h-4 w-4 align-text-bottom" />{' '}
-                <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.
-              </span>
-            </li>
-          </ol>
+          {mode === 'ios-open-in-safari' ? <IosOpenInSafariSteps /> : <IosInstallSteps />}
 
           <p className="rounded-lg bg-secondary p-3 text-xs text-muted-foreground">
             HopeNest then opens full screen, with no browser bars, just like a native app.

@@ -12,6 +12,7 @@ import { PaymentIntent } from '../modules/payments/entities/payment-intent.entit
 import { ProcessedWebhook } from '../modules/payments/entities/processed-webhook.entity';
 import { StripePaymentAdapter } from './adapters/stripe-payment.adapter';
 import { BankWirePaymentAdapter } from './adapters/bank-wire.adapter';
+import { PayPalPaymentAdapter } from './adapters/paypal-payment.adapter';
 import { IPaymentAdapter } from './adapters/payment-adapter.interface';
 import { CreateDonationDto, DonationProvider } from './dto/create-donation.dto';
 import { LedgerService } from '../ledger/ledger.service';
@@ -64,6 +65,7 @@ export class PaymentsService {
     private readonly dataSource: DataSource,
     private readonly stripe: StripePaymentAdapter,
     private readonly bankWire: BankWirePaymentAdapter,
+    private readonly paypal: PayPalPaymentAdapter,
     private readonly ledger: LedgerService,
     private readonly platformFees: PlatformFeeService,
     @InjectRepository(PaymentIntent)
@@ -84,6 +86,11 @@ export class PaymentsService {
         channel: BankWirePaymentAdapter.channel,
         instance: bankWire,
       },
+      [PayPalPaymentAdapter.provider]: {
+        provider: PayPalPaymentAdapter.provider,
+        channel: PayPalPaymentAdapter.channel,
+        instance: paypal,
+      },
     };
   }
 
@@ -93,8 +100,9 @@ export class PaymentsService {
   ): Promise<DonationResponse> {
     const provider: DonationProvider = dto.provider ?? 'stripe';
     const adapter = this.adapters[provider]?.instance;
+    const channel = this.adapters[provider]?.channel;
 
-    if (!adapter) {
+    if (!adapter || !channel) {
       throw new BadRequestException(`Unsupported payment provider: ${provider}`);
     }
 
@@ -113,7 +121,7 @@ export class PaymentsService {
     const platformFee = Number((grossAmount * platformFeeRate).toFixed(2));
     // Bank transfers carry no processor fee; the ledger posts them the same way.
     const processingFee = Number(
-      (provider === 'bank_wire' ? 0 : grossAmount * CARD_PROCESSING_FEE_RATE).toFixed(2),
+      (channel === PaymentChannel.BANK_TRANSFER ? 0 : grossAmount * CARD_PROCESSING_FEE_RATE).toFixed(2),
     );
     const netAmount = Number(
       (grossAmount - platformFee - processingFee).toFixed(2),
@@ -128,11 +136,6 @@ export class PaymentsService {
         isAnonymous: dto.isAnonymous ?? false,
       },
     );
-
-    const channel =
-      provider === 'bank_wire'
-        ? PaymentChannel.BANK_TRANSFER
-        : PaymentChannel.CARD;
 
     const paymentIntent = await this.paymentIntents.save({
       campaignId: dto.campaignId,

@@ -75,11 +75,19 @@ export class AuthController {
     private readonly config: ConfigService<EnvironmentVariables, true>,
   ) {}
 
-  /** Creates the account and emails a verification link; no session until it is opened. */
+  /**
+   * Creates the account and emails a verification link; no session until it is opened.
+   * When verification is switched off, the account is signed in straight away.
+   */
   @Post('register')
   @HttpCode(201)
-  register(@Body() dto: RegisterDto): Promise<VerificationPending> {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<VerificationPending | AuthResponse> {
+    const response = await this.authService.register(dto);
+    if ('accessToken' in response) this.setAuthCookies(res, response);
+    return response;
   }
 
   /** Opens the emailed link: verifies the address and signs the person in. */

@@ -65,7 +65,7 @@ export function HomeClient({ categoryParam }: { categoryParam: string | null }) 
 
       <main id="main">
         {/* ------------------------------------------------------------ hero */}
-        <HeroSection campaigns={campaigns} />
+        <HeroSection />
 
         {/* -------------------------------------------------- featured grid */}
         <section id="featured" className="container scroll-mt-20 py-16 sm:py-20">

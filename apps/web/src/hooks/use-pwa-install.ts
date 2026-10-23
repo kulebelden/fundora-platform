@@ -14,6 +14,8 @@ export type InstallMode =
   | 'prompt'
   /** iOS Safari never fires that event; the user must use Share -> Add to Home Screen. */
   | 'ios-manual'
+  /** An iOS in-app browser (Instagram, WhatsApp...) with no Add to Home Screen; open Safari first. */
+  | 'ios-open-in-safari'
   /** Already running as an installed app, or the browser cannot install. */
   | 'unavailable';
 
@@ -24,7 +26,7 @@ export interface PwaInstall {
   install: () => Promise<boolean>;
 }
 
-function detectStandalone(): boolean {
+export function detectStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -33,13 +35,27 @@ function detectStandalone(): boolean {
   );
 }
 
-function detectIos(): boolean {
+export function detectIos(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
   const isIosDevice = /iPad|iPhone|iPod/.test(ua);
   // iPadOS 13+ reports as a Mac, so check for touch support to catch it.
   const isIpadOs = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
   return isIosDevice || isIpadOs;
+}
+
+/**
+ * In-app web views (Facebook, Instagram, WhatsApp, TikTok, LinkedIn...) have no Share ->
+ * Add to Home Screen. Chrome, Edge and Firefox on iOS 16.4+ do, so they count as capable.
+ */
+export function detectIosInAppBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|Snapchat|TikTok|musical_ly|LinkedInApp|Twitter|GSA\//.test(ua)) {
+    return true;
+  }
+  // A WKWebView reports AppleWebKit but no "Safari/" token, unlike real browsers.
+  return !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
 }
 
 export function usePwaInstall(): PwaInstall {
@@ -58,7 +74,7 @@ export function usePwaInstall(): PwaInstall {
     }
 
     if (detectIos()) {
-      setMode('ios-manual');
+      setMode(detectIosInAppBrowser() ? 'ios-open-in-safari' : 'ios-manual');
     }
 
     const onBeforeInstallPrompt = (event: Event) => {

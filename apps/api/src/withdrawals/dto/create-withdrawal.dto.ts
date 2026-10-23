@@ -14,7 +14,6 @@ import {
 } from 'class-validator';
 import { SUPPORTED_CURRENCIES, isSupportedCountry } from '../../common/supported-markets';
 
-/** ISO 3166-1 alpha-2, and one of the markets HopeNest can pay out to. */
 function IsSupportedCountryCode() {
   return ValidateBy({
     name: 'isSupportedCountryCode',
@@ -36,12 +35,11 @@ export class BankDetailsDto {
   @MaxLength(64)
   accountNumber!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(11)
-  swiftBic!: string;
+  swiftBic?: string;
 
-  /** Optional: not every banking system (e.g. the US) uses IBANs. */
   @IsOptional()
   @IsString()
   @MaxLength(34)
@@ -52,12 +50,45 @@ export class BankDetailsDto {
   @MaxLength(200)
   accountName!: string;
 
-  /** ISO 3166-1 alpha-2, restricted to the supported payout markets. */
   @IsOptional()
   @IsString()
   @Length(2, 2)
   @IsSupportedCountryCode()
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  accountHolder?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  accountType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  routingNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  achRouting?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  bankAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  writeRouting?: string;
+
+  @IsOptional()
+  @IsIn(['wire', 'ach'])
+  method?: 'wire' | 'ach';
 }
 
 export class CreateWithdrawalDto {

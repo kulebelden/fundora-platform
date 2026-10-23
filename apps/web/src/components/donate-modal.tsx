@@ -6,6 +6,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  DollarSign,
   Info,
   Loader2,
   Lock,
@@ -34,7 +35,7 @@ import { useDonate, useDonationFees, useMe } from '@/lib/queries';
 import type { CampaignSummary, DonationResponse } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-type Method = 'stripe' | 'bank_wire';
+type Method = 'stripe' | 'bank_wire' | 'paypal';
 
 export function DonateModal({
   campaign,
@@ -63,7 +64,8 @@ export function DonateModal({
   const { data: fees } = useDonationFees();
   const split = previewDonation(
     numericAmount,
-    method === 'bank_wire' ? 'bank' : 'card',
+    // PayPal settles on the bank-transfer channel, so no card processing fee.
+    method === 'bank_wire' || method === 'paypal' ? 'bank' : 'card',
     fees ? fees.platformFeePercent / 100 : undefined,
   );
   const amountValid = Number.isFinite(numericAmount) && numericAmount >= 1;
@@ -292,7 +294,7 @@ export function DonateModal({
               <div className="space-y-2">
                 <Label>Payment method</Label>
                 <Tabs value={method} onValueChange={(value) => setMethod(value as Method)}>
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="stripe">
                       <CreditCard className="h-4 w-4" />
                       Card
@@ -300,6 +302,10 @@ export function DonateModal({
                     <TabsTrigger value="bank_wire">
                       <Building2 className="h-4 w-4" />
                       Bank transfer
+                    </TabsTrigger>
+                    <TabsTrigger value="paypal">
+                      <DollarSign className="h-4 w-4" />
+                      PayPal
                     </TabsTrigger>
                   </TabsList>
 
@@ -324,6 +330,16 @@ export function DonateModal({
                         We will generate a wire reference and the beneficiary account details
                         for you to pay from your bank. Funds credit the campaign once the
                         transfer clears, usually within 1–3 business days.
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="paypal">
+                    <div className="rounded-lg border bg-secondary/40 p-4">
+                      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        You will finish on PayPal&apos;s own checkout. Funds credit the campaign
+                        once PayPal confirms the payment.
                       </p>
                     </div>
                   </TabsContent>
@@ -401,7 +417,9 @@ function DonationHandoff({
         <DialogDescription className="text-center">
           {method === 'bank_wire'
             ? 'Use the reference below when you make the transfer from your bank.'
-            : 'Complete the payment on the processor’s secure checkout to finish your donation.'}
+            : method === 'paypal'
+              ? 'Complete the payment on PayPal to finish your donation.'
+              : 'Complete the payment on the processor’s secure checkout to finish your donation.'}
         </DialogDescription>
       </DialogHeader>
 

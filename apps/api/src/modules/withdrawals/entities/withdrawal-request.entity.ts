@@ -17,10 +17,17 @@ import { User } from '../../identity/entities/user.entity';
 export interface BankAccountDetails {
   bankName: string;
   accountNumber: string;
-  swiftBic: string;
+  swiftBic?: string;
   iban?: string;
   accountName: string;
   country?: string;
+  accountHolder?: string;
+  accountType?: string;
+  routingNumber?: string;
+  achRouting?: string;
+  bankAddress?: string;
+  writeRouting?: string;
+  method?: 'wire' | 'ach';
 }
 
 @Entity({ name: 'withdrawal_requests' })
@@ -46,15 +53,12 @@ export class WithdrawalRequest {
   @JoinColumn({ name: 'userId' })
   user!: User;
 
-  /** Total requested from the campaign wallet. Decimal string. */
   @Column(MONEY_COLUMN)
   grossAmount!: string;
 
-  /** 8% platform revenue, computed server-side. */
   @Column(MONEY_COLUMN)
   serviceFee!: string;
 
-  /** grossAmount - serviceFee: the amount actually wired to the bank. */
   @Column(MONEY_COLUMN)
   netAmount!: string;
 
@@ -82,7 +86,6 @@ export class WithdrawalRequest {
   @Column({ type: 'timestamptz', nullable: true })
   reviewedAt!: Date | null;
 
-  /** Bank's reference for the executed payout; also proves the payout happened. */
   @Column({ type: 'varchar', length: 128, nullable: true })
   payoutReference!: string | null;
 

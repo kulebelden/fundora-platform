@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -14,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiErrorMessage } from '@/lib/api';
 import { useRegister } from '@/lib/queries';
+import { isAdminRole } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 /** Mirrors RegisterDto in apps/api so the user sees failures before a round trip. */
@@ -45,6 +47,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function RegisterForm() {
+  const router = useRouter();
   const registerUser = useRegister();
 
   const [showPassword, setShowPassword] = React.useState(false);
@@ -64,7 +67,13 @@ export function RegisterForm() {
   const onSubmit = (values: FormValues) => {
     setFormError(null);
     registerUser.mutate(values, {
-      onSuccess: (result) => setSentTo(result.email),
+      onSuccess: (result) => {
+        if ('user' in result) {
+          router.push(isAdminRole(result.user.role) ? '/admin' : '/dashboard/campaigns');
+        } else {
+          setSentTo(result.email);
+        }
+      },
       onError: (error) =>
         setFormError(apiErrorMessage(error, 'Could not create your account.')),
     });

@@ -19,7 +19,7 @@ import { SUPPORTED_CURRENCIES } from '../../common/supported-markets';
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() || undefined : value;
 
-export type DonationProvider = 'stripe' | 'bank_wire';
+export type DonationProvider = 'stripe' | 'bank_wire' | 'paypal';
 
 export class CreateDonationDto {
   @IsUUID()
@@ -68,7 +68,7 @@ export class CreateDonationDto {
   donorMessage?: string;
 
   @IsOptional()
-  @IsEnum(['stripe', 'bank_wire'])
+  @IsEnum(['stripe', 'bank_wire', 'paypal'])
   @IsString()
   provider?: DonationProvider = 'stripe';
 }

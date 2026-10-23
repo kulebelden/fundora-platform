@@ -1,0 +1,13 @@
+# HTTPS is automatic: Caddy obtains a Let's Encrypt certificate for SITE_HOST.
+{$SITE_HOST} {
+	encode gzip
+	request_body /api/v1/uploads/* {
+		max_size 15MB
+	}
+	handle /api/v1/* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:3001
+	}
+}

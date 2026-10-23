@@ -56,8 +56,10 @@ export class AuthService {
   /**
    * Creates the account and emails a verification link. No session is issued:
    * the first sign-in happens when the link is opened (see `verifyEmail`).
+   * With EMAIL_VERIFICATION_REQUIRED=false the account starts verified and is signed in.
    */
-  async register(dto: RegisterDto): Promise<VerificationPending> {
+  async register(dto: RegisterDto): Promise<VerificationPending | AuthResponse> {
+    const verificationRequired = this.config.get('EMAIL_VERIFICATION_REQUIRED', { infer: true });
     const email = dto.email.toLowerCase();
     const phoneNumber = dto.phoneNumber;
     const created = await this.dataSource.transaction(async (manager) => {
@@ -79,6 +81,7 @@ export class AuthService {
           phoneNumber,
           passwordHash,
           role: UserRole.DONOR,
+          isEmailVerified: !verificationRequired,
         }),
       );
 
@@ -94,6 +97,11 @@ export class AuthService {
 
       return { user, profile };
     });
+
+    if (!verificationRequired) {
+      const session = await this.issueSession(created.user);
+      return { user: this.toAuthenticatedUser(created.user, created.profile), ...session };
+    }
 
     await this.sendVerificationEmail(created.user, created.profile.firstName);
     return { status: 'VERIFICATION_SENT', email: created.user.email };
@@ -256,7 +264,7 @@ export class AuthService {
     }
 
     // Checked after the password, so this answer never reveals that an address is registered.
-    if (!user.isEmailVerified) {
+    if (!user.isEmailVerified && this.config.get('EMAIL_VERIFICATION_REQUIRED', { infer: true })) {
       throw new ForbiddenException({
         statusCode: 403,
         code: 'EMAIL_NOT_VERIFIED',

@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Fraunces, Playfair_Display, Plus_Jakarta_Sans, Sora, Space_Grotesk, Syne } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from './providers';
+import { SplashWrapper } from './splash-wrapper';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
@@ -11,11 +13,6 @@ const sans = Plus_Jakarta_Sans({
   variable: '--font-sans',
 });
 
-/*
- * Display faces for the inner-page heroes — each hero layout sets its headline
- * in its own typeface. They are not preloaded: a page only downloads the one
- * its hero actually uses.
- */
 const serif = Fraunces({
   subsets: ['latin'],
   style: ['normal', 'italic'],
@@ -78,7 +75,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/icons/icon-192.png',
-    apple: '/icons/apple-touch-icon.png',
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  formatDetection: { telephone: false },
+  other: {
+    // Safari's Add to Home Screen reads these alongside the manifest.
+    'mobile-web-app-capable': 'yes',
   },
   openGraph: {
     title: 'HopeNest — Real People. Real Causes. Greater Impact.',
@@ -95,7 +97,6 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-  // Installed PWAs sit under the notch; this keeps content clear of it.
   viewportFit: 'cover',
 };
 
@@ -110,10 +111,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <Providers>
-          {children}
-          <Toaster />
+          <SplashWrapper>
+            {children}
+            <Toaster />
+          </SplashWrapper>
+          <IosInstallPrompt />
         </Providers>
       </body>
     </html>
   );
-}
+}

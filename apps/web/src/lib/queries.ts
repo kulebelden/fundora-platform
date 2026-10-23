@@ -81,7 +81,12 @@ export function useLogin() {
 }
 
 /** Creates the account. No session yet: the emailed link signs the person in. */
+/**
+ * Creates the account. Normally answers VERIFICATION_SENT; when the API has email
+ * verification switched off it signs the person in and returns the session instead.
+ */
 export function useRegister() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: {
       email: string;
@@ -90,8 +95,14 @@ export function useRegister() {
       firstName: string;
       lastName: string;
     }) => {
-      const { data } = await api.post<{ status: 'VERIFICATION_SENT'; email: string }>('/auth/register', payload);
+      const { data } = await api.post<{ status: 'VERIFICATION_SENT'; email: string } | AuthResponse>(
+        '/auth/register',
+        payload,
+      );
       return data;
+    },
+    onSuccess: (data) => {
+      if ('user' in data) queryClient.setQueryData(queryKeys.me, data.user);
     },
   });
 }
@@ -293,7 +304,7 @@ export function useDonate() {
       amount: number;
       currency?: string;
       isAnonymous?: boolean;
-      provider?: 'stripe' | 'bank_wire';
+      provider?: 'stripe' | 'bank_wire' | 'paypal';
       donorName?: string;
       donorEmail?: string;
       donorPhone?: string;

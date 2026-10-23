@@ -118,6 +118,14 @@ export class EnvironmentVariables {
   @IsString()
   APPLE_PRIVATE_KEY?: string;
 
+  /**
+   * When false, new accounts are verified on creation and signed straight in, and
+   * login does not ask for a confirmed email. For development deploys without SMTP.
+   */
+  @Transform(toBoolean)
+  @IsBoolean()
+  EMAIL_VERIFICATION_REQUIRED: boolean = true;
+
   /*
    * Outgoing email (verification links). Any SMTP provider works. With no
    * SMTP_HOST, emails are not sent and their links are written to the log, so

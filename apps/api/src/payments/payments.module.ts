@@ -12,6 +12,7 @@ import { LedgerTransaction } from '../modules/ledger/entities/ledger-transaction
 import { PaymentIntent } from '../modules/payments/entities/payment-intent.entity';
 import { ProcessedWebhook } from '../modules/payments/entities/processed-webhook.entity';
 import { BankWirePaymentAdapter } from './adapters/bank-wire.adapter';
+import { PayPalPaymentAdapter } from './adapters/paypal-payment.adapter';
 import { StripePaymentAdapter } from './adapters/stripe-payment.adapter';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
@@ -35,6 +36,7 @@ import { WebhooksController } from './webhooks.controller';
   providers: [
     StripePaymentAdapter,
     BankWirePaymentAdapter,
+    PayPalPaymentAdapter,
     PaymentsService,
     LedgerService,
     PlatformFeeService,
