@@ -13,7 +13,13 @@ tar czf /tmp/fundora.tgz --exclude=node_modules --exclude=.next --exclude=dist -
   --exclude=.kilo --exclude='apps(web)' --exclude=apps/api/uploads --exclude='*.tsbuildinfo' \
   --exclude='./background image.png' --exclude='./landing page full view.png' --exclude=deploy/.env --exclude='.env' .
 scp -i "$KEY" -o StrictHostKeyChecking=accept-new /tmp/fundora.tgz "$SSH_USER@$HOST:/tmp/fundora.tgz"
-$SSH "mkdir -p ~/fundora && tar xzf /tmp/fundora.tgz -C ~/fundora && cd ~/fundora/deploy && bash server-setup.sh $SITE_HOST"
+# Replace the old tree rather than unpacking over it, so files deleted locally do not
+# linger and get baked into images. Only deploy/.env* (the server's secrets) is kept;
+# the database, uploads and certificates live in Docker volumes, not in this folder.
+$SSH "mkdir -p ~/fundora/deploy \
+  && find ~/fundora -mindepth 1 -maxdepth 1 ! -name deploy -exec rm -rf {} + \
+  && find ~/fundora/deploy -mindepth 1 -maxdepth 1 ! -name '.env*' -exec rm -rf {} + \
+  && tar xzf /tmp/fundora.tgz -C ~/fundora && cd ~/fundora/deploy && bash server-setup.sh $SITE_HOST"
 # New SSH session so docker group membership applies.
 $SSH "cd ~/fundora/deploy && sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build && sudo docker compose -f docker-compose.prod.yml ps"
 # Old images and build cache fill the small root volume quickly.
