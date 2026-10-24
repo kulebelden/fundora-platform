@@ -23,10 +23,10 @@ $SSH "mkdir -p ~/fundora/deploy \
 # New SSH session so docker group membership applies. The images are built one at a
 # time: building both at once exhausts a 1 GB server's memory and freezes it.
 COMPOSE="sudo docker compose -f docker-compose.prod.yml --env-file .env"
-# Caddy is reloaded because `up -d` does not restart it when only the Caddyfile changes.
+# Caddy is restarted because `up -d` does not restart it when only the Caddyfile changes.
 # The build runs as a detached job on the server: SSH connections often drop while the
 # small server is busy building, and a dropped connection must not kill the deploy.
-$SSH "cd ~/fundora/deploy && nohup bash -c '$COMPOSE build api && $COMPOSE build web && $COMPOSE up -d && $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile && echo DEPLOY_OK || echo DEPLOY_FAILED' > ~/deploy-build.log 2>&1 < /dev/null &"
+$SSH "cd ~/fundora/deploy && nohup bash -c '$COMPOSE build api && $COMPOSE build web && $COMPOSE up -d && $COMPOSE restart caddy && echo DEPLOY_OK || echo DEPLOY_FAILED' > ~/deploy-build.log 2>&1 < /dev/null &"
 echo "Building on the server (log: ~/deploy-build.log)..."
 until $SSH "grep -qE '^DEPLOY_(OK|FAILED)' ~/deploy-build.log" 2>/dev/null; do sleep 20; done
 $SSH "tail -15 ~/deploy-build.log; cd ~/fundora/deploy && $COMPOSE ps; grep -q '^DEPLOY_OK' ~/deploy-build.log"
