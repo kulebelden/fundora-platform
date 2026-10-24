@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
@@ -59,6 +60,8 @@ export class UploadsController {
    * attached to a campaign, and campaigns are reviewed before they go live.
    */
   @Post('campaign-cover')
+  // Per IP: uploads are the heaviest request the API takes.
+  @Throttle({ default: { limit: 30, ttl: 10 * 60_000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(201)
   @UseInterceptors(

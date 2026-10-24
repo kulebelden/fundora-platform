@@ -27,4 +27,5 @@ export const queryKeys = {
     ['admin', 'donations', status, channel, search, page] as const,
   adminWithdrawalAudit: (status: string, page: number) =>
     ['admin', 'withdrawal-audit', status, page] as const,
+  adminBankTransfers: (status: 'pending' | 'confirmed') => ['admin', 'bank-transfers', status] as const,
 };

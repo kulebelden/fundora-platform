@@ -59,6 +59,22 @@ ENV
   echo "Generated deploy/.env with fresh secrets."
 fi
 
+# The site address follows each deploy, so moving to the real domain is one command:
+#   SITE_HOST=hopenest.org bash deploy/deploy.sh
+# APP_URL (email links, OAuth callbacks) is derived from it in docker-compose.prod.yml.
+OLD_SITE_HOST="$(grep '^SITE_HOST=' .env | cut -d= -f2-)"
+if [ "$OLD_SITE_HOST" != "$SITE_HOST" ]; then
+  grep -v '^SITE_HOST=' .env > .env.tmp && mv .env.tmp .env
+  echo "SITE_HOST=$SITE_HOST" >> .env
+  # Only the generated sender follows the host; a sender set from .env.smtp is kept.
+  if grep -q "^MAIL_FROM=HopeNest <no-reply@$OLD_SITE_HOST>" .env; then
+    grep -v '^MAIL_FROM=' .env > .env.tmp && mv .env.tmp .env
+    echo "MAIL_FROM=HopeNest <no-reply@$SITE_HOST>" >> .env
+  fi
+  chmod 600 .env
+  echo "Site address changed: $OLD_SITE_HOST -> $SITE_HOST"
+fi
+
 # Mail settings uploaded from the developer machine (deploy/.env.smtp, never committed)
 # replace the SMTP_* and MAIL_FROM lines in .env.
 if [ -f .env.smtp ]; then
@@ -76,3 +92,42 @@ fi
 
 # Older .env files predate the verification switch: add it, off while SMTP is unset.
 grep -q '^EMAIL_VERIFICATION_REQUIRED=' .env || echo 'EMAIL_VERIFICATION_REQUIRED=false' >> .env
+
+# --- Host hardening (idempotent, runs on every deploy; see SECURITY.md) ---------------
+
+# Security patches install themselves daily.
+if command -v dnf >/dev/null; then
+  rpm -q dnf-automatic >/dev/null 2>&1 || sudo dnf install -y dnf-automatic
+  sudo sed -i -e 's/^upgrade_type *=.*/upgrade_type = security/' \
+    -e 's/^apply_updates *=.*/apply_updates = yes/' /etc/dnf/automatic.conf
+  sudo systemctl enable --now dnf-automatic.timer
+elif command -v apt-get >/dev/null; then
+  dpkg -s unattended-upgrades >/dev/null 2>&1 || sudo apt-get install -y unattended-upgrades
+fi
+
+# SSH: keys only, no root, few guesses per connection. sshd uses the first value it
+# reads, so the 01- prefix wins over the distribution's own drop-ins. A config that
+# fails `sshd -t` is removed again rather than risk locking everyone out.
+SSHD_DROPIN=/etc/ssh/sshd_config.d/01-hopenest.conf
+sudo tee "$SSHD_DROPIN" >/dev/null <<'SSHD'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+MaxAuthTries 3
+LoginGraceTime 30
+X11Forwarding no
+AllowAgentForwarding no
+SSHD
+if sudo sshd -t; then
+  sudo systemctl reload sshd
+else
+  sudo rm -f "$SSHD_DROPIN"
+  echo "WARNING: SSH hardening rejected by sshd -t; left SSH settings unchanged." >&2
+fi
+
+# Cap container logs, so a flood of requests cannot fill the disk and take the site down.
+if [ ! -f /etc/docker/daemon.json ]; then
+  echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "5" } }' \
+    | sudo tee /etc/docker/daemon.json >/dev/null
+  sudo systemctl restart docker
+fi

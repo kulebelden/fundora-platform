@@ -12,7 +12,9 @@ RUN pnpm install --frozen-lockfile --filter "@fundora/web..."
 COPY apps/web ./apps/web
 # Rewrites are baked into the build, so the API's in-network address is needed here.
 ARG API_ORIGIN=http://api:3000
+ARG SITE_URL=http://localhost:3001
 ENV API_ORIGIN=$API_ORIGIN \
+    SITE_URL=$SITE_URL \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_OPTIONS=--max-old-space-size=1536

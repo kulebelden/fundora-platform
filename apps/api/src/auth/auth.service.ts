@@ -2,13 +2,16 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { LessThan, MoreThan } from 'typeorm';
+import { IsNull, LessThan, MoreThan } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { UserRole } from '../common/enums';
 import { isSupportedCountry } from '../common/supported-markets';
@@ -26,6 +29,7 @@ import { TokenPair } from './interfaces/auth-response';
 import type { OAuthProfile } from './oauth.service';
 import { PasswordService } from './password.service';
 import { EmailVerificationToken } from './email-verification-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { UserIdentity } from './user-identity.entity';
 
 /** Used when a phone number's calling code is unknown or unsupported. */
@@ -37,6 +41,18 @@ const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 /** Minimum gap between two verification emails to the same account. */
 const RESEND_COOLDOWN_MS = 60 * 1000;
 
+/** How long a "reset your password" link stays valid. Short: it is as good as the password. */
+const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+
+/** Minimum gap between two password reset emails to the same account. */
+const PASSWORD_RESET_COOLDOWN_MS = 60 * 1000;
+
+/** Failed password logins in a row before the account is locked. */
+const MAX_FAILED_LOGINS = 5;
+
+/** How long a locked account refuses password logins. A password reset unlocks it at once. */
+const LOCKOUT_MS = 15 * 60 * 1000;
+
 /** Returned by sign-up: the account exists but cannot sign in until the email is confirmed. */
 export interface VerificationPending {
   status: 'VERIFICATION_SENT';
@@ -45,13 +61,23 @@ export interface VerificationPending {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  /**
+   * Verified against when no account matches a login, so a missing account costs the
+   * same argon2 work as a wrong password and response time does not reveal which.
+   */
+  private readonly dummyPasswordHash: Promise<string>;
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly passwordService: PasswordService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvironmentVariables, true>,
     private readonly mail: MailService,
-  ) {}
+  ) {
+    this.dummyPasswordHash = this.passwordService.hashPassword(randomBytes(32).toString('hex'));
+  }
 
   /**
    * Creates the account and emails a verification link. No session is issued:
@@ -163,16 +189,115 @@ export class AuthService {
       }),
     );
 
-    const appUrl = (this.config.get('APP_URL', { infer: true }) ?? 'http://localhost:3001').replace(/\/+$/, '');
-    const link = `${appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    const link = `${this.appUrl()}/verify-email?token=${encodeURIComponent(token)}`;
     const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
 
     await this.mail.send({
       to: user.email,
       subject: 'Confirm your email for HopeNest',
       text: `${greeting}\n\nConfirm your email address to finish creating your HopeNest account:\n\n${link}\n\nThe link works for 24 hours. If you did not sign up, you can ignore this email.`,
-      html: verificationEmailHtml(greeting, link),
+      html: verificationEmailHtml(escapeHtml(greeting), link),
     });
+  }
+
+  /**
+   * Emails a reset link if the address has an account. Answers the same either way,
+   * so the endpoint cannot be used to discover accounts.
+   */
+  async requestPasswordReset(rawEmail: string): Promise<void> {
+    const email = rawEmail.trim().toLowerCase();
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { email },
+      relations: { profile: true },
+    });
+    if (!user) return;
+
+    const tokens = this.dataSource.getRepository(PasswordResetToken);
+    const recent = await tokens.findOne({
+      where: { userId: user.id, createdAt: MoreThan(new Date(Date.now() - PASSWORD_RESET_COOLDOWN_MS)) },
+    });
+    if (recent) return;
+
+    const token = randomBytes(32).toString('base64url');
+    // One live link at a time: a new request spends every earlier one.
+    await tokens.delete({ userId: user.id });
+    await tokens.save(
+      tokens.create({
+        userId: user.id,
+        tokenHash: this.hashRefreshToken(token),
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
+      }),
+    );
+
+    const link = `${this.appUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+    const firstName = user.profile?.firstName ?? '';
+    const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
+
+    await this.mail.send({
+      to: user.email,
+      subject: 'Reset your HopeNest password',
+      text: `${greeting}\n\nSomeone asked to reset the password for your HopeNest account. To choose a new password, open:\n\n${link}\n\nThe link works for 30 minutes and can be used once. If you did not ask for this, ignore this email: your password stays the same.`,
+      html: passwordResetEmailHtml(escapeHtml(greeting), link),
+    });
+  }
+
+  /**
+   * Sets a new password from an emailed link. Spends the link, unlocks the account,
+   * and ends every existing session: refresh tokens are revoked and access tokens
+   * issued before now are refused (see JwtStrategy). The person then signs in afresh.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = this.hashRefreshToken(token);
+    const passwordHash = await this.passwordService.hashPassword(newPassword);
+
+    const user = await this.dataSource.transaction(async (manager) => {
+      const tokens = manager.getRepository(PasswordResetToken);
+      const record = await tokens
+        .createQueryBuilder('token')
+        .setLock('pessimistic_write')
+        .where('token."tokenHash" = :tokenHash', { tokenHash })
+        .getOne();
+      if (!record || record.expiresAt <= new Date()) {
+        throw new BadRequestException('This reset link is invalid or has expired. Request a new one.');
+      }
+
+      const users = manager.getRepository(User);
+      await users.update(
+        { id: record.userId },
+        {
+          passwordHash,
+          passwordChangedAt: new Date(),
+          failedLoginCount: 0,
+          lockedUntil: null,
+          // Opening the emailed link proves the person controls the address.
+          isEmailVerified: true,
+        },
+      );
+      await tokens.delete({ userId: record.userId });
+      await manager
+        .getRepository(RefreshToken)
+        .update({ userId: record.userId, revokedAt: IsNull() }, { revokedAt: new Date() });
+      return users.findOneOrFail({ where: { id: record.userId }, relations: { profile: true } });
+    });
+
+    const firstName = user.profile?.firstName ?? '';
+    const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
+    await this.mail
+      .send({
+        to: user.email,
+        subject: 'Your HopeNest password was changed',
+        text: `${greeting}\n\nThe password for your HopeNest account was just changed, and every device was signed out. If this was not you, reset your password straight away and contact our team.`,
+        html: noticeEmailHtml(
+          escapeHtml(greeting),
+          'The password for your HopeNest account was just changed, and every device was signed out.',
+          'If this was not you, reset your password straight away and contact our team.',
+        ),
+      })
+      .catch((error: unknown) => this.logger.warn(`Password-changed notice not sent: ${String(error)}`));
+  }
+
+  private appUrl(): string {
+    return (this.config.get('APP_URL', { infer: true }) ?? 'http://localhost:3001').replace(/\/+$/, '');
   }
 
   /**
@@ -259,8 +384,29 @@ export class AuthService {
       })
       .getOne();
 
-    if (!user || !(await this.passwordService.verifyPassword(user.passwordHash, dto.password))) {
+    if (!user) {
+      await this.passwordService.verifyPassword(await this.dummyPasswordHash, dto.password);
       throw new UnauthorizedException('Invalid email, phone number, or password');
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          code: 'ACCOUNT_LOCKED',
+          message: 'Too many failed sign-in attempts. Try again in 15 minutes, or reset your password.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    if (!(await this.passwordService.verifyPassword(user.passwordHash, dto.password))) {
+      await this.recordFailedLogin(user.id);
+      throw new UnauthorizedException('Invalid email, phone number, or password');
+    }
+
+    if (user.failedLoginCount > 0 || user.lockedUntil) {
+      await users.update({ id: user.id }, { failedLoginCount: 0, lockedUntil: null });
     }
 
     // Checked after the password, so this answer never reveals that an address is registered.
@@ -279,6 +425,27 @@ export class AuthService {
       user: this.toAuthenticatedUser(user),
       ...tokens,
     };
+  }
+
+  /** Counts a wrong password; the fifth in a row locks password logins for 15 minutes. */
+  private async recordFailedLogin(userId: string): Promise<void> {
+    // One atomic statement, so parallel guesses cannot slip past the limit.
+    const rows: Array<{ failedLoginCount: number }> = await this.dataSource.query(
+      `UPDATE "users"
+          SET "failedLoginCount" = "failedLoginCount" + 1,
+              "lockedUntil" = CASE WHEN "failedLoginCount" + 1 >= $2
+                                   THEN now() + make_interval(secs => $3)
+                                   ELSE "lockedUntil" END
+        WHERE "id" = $1
+    RETURNING "failedLoginCount"`,
+      [userId, MAX_FAILED_LOGINS, LOCKOUT_MS / 1000],
+    );
+    const count = rows[0]?.failedLoginCount ?? 0;
+    if (count >= MAX_FAILED_LOGINS) {
+      // Start a fresh count once the lock ends.
+      await this.dataSource.query(`UPDATE "users" SET "failedLoginCount" = 0 WHERE "id" = $1`, [userId]);
+      this.logger.warn(`Account ${userId} locked for ${LOCKOUT_MS / 60000} minutes after ${count} failed logins`);
+    }
   }
 
   async refreshTokens(userId: string, refreshToken: string): Promise<AuthResponse> {
@@ -302,6 +469,20 @@ export class AuthService {
     }
 
     const tokenHash = this.hashRefreshToken(refreshToken);
+
+    // A token that was already rotated out is being replayed: someone holds a stolen
+    // copy. End every session for the account, the thief's and the owner's alike.
+    const known = await this.dataSource
+      .getRepository(RefreshToken)
+      .findOne({ where: { tokenHash, userId: payload.sub } });
+    if (known?.revokedAt && known.replacedBy) {
+      await this.dataSource
+        .getRepository(RefreshToken)
+        .update({ userId: payload.sub, revokedAt: IsNull() }, { revokedAt: new Date() });
+      this.logger.warn(`Refresh token reuse for user ${payload.sub}: all sessions revoked`);
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
     const tokens = await this.issueTokenPair(
       payload.sub,
       payload.email,
@@ -518,6 +699,46 @@ export class AuthService {
     }
     return DEFAULT_COUNTRY_CODE;
   }
+}
+
+/** For text from users (names) placed into email HTML. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function passwordResetEmailHtml(greeting: string, link: string): string {
+  return `<!doctype html>
+<html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#0b1f3a">
+  <div style="max-width:480px;margin:0 auto;padding:32px 20px">
+    <div style="background:#ffffff;border-radius:16px;padding:32px 28px">
+      <p style="margin:0 0 4px;font-size:20px;font-weight:bold;color:#002b66">HopeNest</p>
+      <p style="margin:24px 0 8px;font-size:16px">${greeting}</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.5">Someone asked to reset the password for your HopeNest account.</p>
+      <a href="${link}" style="display:inline-block;background:#00a86b;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 24px;border-radius:10px">Choose a new password</a>
+      <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#5b6b82">The link works for 30 minutes and can be used once. If the button does not open, paste this into your browser:<br><span style="word-break:break-all">${link}</span></p>
+    </div>
+    <p style="margin:16px 0 0;font-size:12px;color:#5b6b82;text-align:center">If you did not ask for this, ignore this email. Your password stays the same.</p>
+  </div>
+</body></html>`;
+}
+
+function noticeEmailHtml(greeting: string, body: string, footer: string): string {
+  return `<!doctype html>
+<html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#0b1f3a">
+  <div style="max-width:480px;margin:0 auto;padding:32px 20px">
+    <div style="background:#ffffff;border-radius:16px;padding:32px 28px">
+      <p style="margin:0 0 4px;font-size:20px;font-weight:bold;color:#002b66">HopeNest</p>
+      <p style="margin:24px 0 8px;font-size:16px">${greeting}</p>
+      <p style="margin:0;font-size:15px;line-height:1.5">${body}</p>
+    </div>
+    <p style="margin:16px 0 0;font-size:12px;color:#5b6b82;text-align:center">${footer}</p>
+  </div>
+</body></html>`;
 }
 
 /** Plain, table-free markup: renders the same in Gmail, Outlook and phone mail apps. */

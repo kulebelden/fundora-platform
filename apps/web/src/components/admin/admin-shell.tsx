@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ExternalLink,
   FolderTree,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -76,6 +77,12 @@ const NAV: AdminNavItem[] = [
     icon: ClipboardCheck,
     roles: ['ADMIN', 'FINANCE_OFFICER'],
     badge: (o) => o.queues.withdrawalsAwaitingReview,
+  },
+  {
+    label: 'Bank transfers',
+    href: '/admin/bank-transfers',
+    icon: Landmark,
+    roles: ['ADMIN', 'FINANCE_OFFICER'],
   },
   {
     label: 'Messages',

@@ -32,6 +32,18 @@ export class User {
   @Column({ type: 'boolean', default: false })
   isPhoneVerified!: boolean;
 
+  /** Consecutive failed password logins; reset by a successful login or a password reset. */
+  @Column({ type: 'integer', default: 0 })
+  failedLoginCount!: number;
+
+  /** Password logins are refused until this time, after too many failures in a row. */
+  @Column({ type: 'timestamptz', nullable: true })
+  lockedUntil!: Date | null;
+
+  /** Access tokens issued before this are rejected, so a reset signs out every session. */
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordChangedAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

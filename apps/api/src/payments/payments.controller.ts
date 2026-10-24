@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { Request } from 'express';
 import { CARD_PROCESSING_FEE_RATE } from '../ledger/fees';
@@ -24,6 +25,8 @@ export class PaymentsController {
 
   /** Guests may donate; a signed-in donor is linked to their account. */
   @Post('donate')
+  // Per IP: stops card-testing runs that try stolen cards in bulk.
+  @Throttle({ default: { limit: 20, ttl: 10 * 60_000 } })
   @UseGuards(OptionalJwtAuthGuard)
   async donate(@Body() dto: CreateDonationDto, @Req() req: Request) {
     const donorId =

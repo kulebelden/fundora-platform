@@ -187,8 +187,8 @@ async function seed(): Promise<void> {
       );
 
       /* -------------------------------------------------------- wallet */
-      // CampaignsService.createCampaign does not open a wallet row — the ledger only
-      // ever UPDATEs one — so a campaign without this is missing its balances.
+      // Seeded campaigns are inserted directly rather than through
+      // CampaignsService.createCampaign, so they open their wallet here.
       const wallets = manager.getRepository(CampaignWallet);
       const existingWallet = await wallets.findOne({ where: { campaignId: campaign.id } });
       if (!existingWallet) {

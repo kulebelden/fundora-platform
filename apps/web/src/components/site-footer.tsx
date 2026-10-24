@@ -165,6 +165,14 @@ export function SiteFooter({ cta = true }: { cta?: boolean } = {}) {
       <div className="relative border-t border-white/10 bg-black/20">
         <div className="container flex flex-col items-center gap-2 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-xs text-white/55 sm:flex-row sm:justify-between sm:text-left">
           <p>© {new Date().getFullYear()} HopeNest. Real People. Real Causes. Greater Impact.</p>
+          <nav aria-label="Legal" className="flex items-center gap-4">
+            <Link href="/terms" className="hover:text-white">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="hover:text-white">
+              Privacy Policy
+            </Link>
+          </nav>
           <p className="inline-flex items-center gap-1.5">
             <LockKeyhole className="hidden h-3.5 w-3.5 sm:block" />
             Payments processed over PCI-DSS compliant infrastructure.

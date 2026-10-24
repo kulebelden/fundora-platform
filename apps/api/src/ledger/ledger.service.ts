@@ -42,11 +42,14 @@ export class LedgerService {
   ): Promise<LedgerTransaction> {
     const paymentIntent = await transactionManager
       .getRepository(PaymentIntent)
-      .createQueryBuilder('paymentIntent')
-      .leftJoinAndSelect('paymentIntent.campaign', 'campaign')
+      .createQueryBuilder('intent')
+      .leftJoinAndSelect('intent.campaign', 'campaign')
       .leftJoinAndSelect('campaign.wallet', 'wallet')
-      .where('paymentIntent.id = :id', { id: paymentIntentId })
-      .setLock('pessimistic_write')
+      .where('intent.id = :id', { id: paymentIntentId })
+      // Lock the payment row only: Postgres refuses FOR UPDATE on the nullable side of
+      // the outer joins, which made every ledger posting fail. The alias stays lower
+      // case because TypeORM writes it unquoted in FOR UPDATE OF.
+      .setLock('pessimistic_write', undefined, ['intent'])
       .getOne();
 
     if (!paymentIntent) {
@@ -75,10 +78,18 @@ export class LedgerService {
 
     const currency = paymentIntent.currency;
     const campaign = paymentIntent.campaign;
-    const wallet = campaign?.wallet;
 
-    if (!wallet) {
-      throw new NotFoundException('Campaign wallet not found');
+    if (!campaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
+    // Campaigns created before wallets were opened at creation have none; open it now
+    // rather than refuse a donation that has already been paid.
+    if (!campaign.wallet) {
+      await transactionManager.query(
+        `INSERT INTO "campaign_wallets" ("campaignId") VALUES ($1) ON CONFLICT ("campaignId") DO NOTHING`,
+        [campaign.id],
+      );
     }
 
     const accounts = await this.identifyAccounts(
@@ -107,12 +118,14 @@ export class LedgerService {
       );
     }
 
+    // Zero lines are left out: a bank transfer has no processing fee (and the platform
+    // fee can be set to 0%), and the ledger requires every entry to move money.
     const entries = [
       this.entry(transaction.id, accounts.bankClearing, grossAmount, EntryType.DEBIT),
       this.entry(transaction.id, accounts.campaignWallet, -netAmount, EntryType.CREDIT),
       this.entry(transaction.id, accounts.platformFeeRevenue, -platformFee, EntryType.CREDIT),
       this.entry(transaction.id, accounts.bankGatewayExpense, processingFee, EntryType.DEBIT),
-    ];
+    ].filter((entry) => Number(entry.amount) !== 0);
 
     await transactionManager
       .getRepository(LedgerEntry)

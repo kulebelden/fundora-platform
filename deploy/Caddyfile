@@ -1,13 +1,41 @@
 # HTTPS is automatic: Caddy obtains a Let's Encrypt certificate for SITE_HOST.
 {$SITE_HOST} {
 	encode gzip
+
+	# Security headers on every response (see SECURITY.md).
+	header {
+		# Browsers refuse plain HTTP to this site for a year once they have seen it.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		# No other site may frame HopeNest (clickjacking).
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(self), usb=(), interest-cohort=()"
+		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+		-X-Powered-By
+	}
+
+	# Photo uploads may be large; every other request is small JSON.
 	request_body /api/v1/uploads/* {
 		max_size 15MB
 	}
+	@notUploads not path /api/v1/uploads/*
+	request_body @notUploads {
+		max_size 1MB
+	}
+
 	handle /api/v1/* {
 		reverse_proxy api:3000
 	}
 	handle {
 		reverse_proxy web:3001
 	}
+}
+
+# www goes to the bare domain. Needs a DNS record for www too; until then Caddy just
+# logs that it cannot get a certificate for it, and the main site is unaffected.
+www.{$SITE_HOST} {
+	redir https://{$SITE_HOST}{uri} permanent
 }

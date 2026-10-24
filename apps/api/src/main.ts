@@ -7,10 +7,22 @@ import { Request } from 'express';
 import { AppModule } from './app.module';
 import { EnvironmentVariables } from './config/env.validation';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { UPLOADS_ROOT, UPLOADS_URL_PREFIX } from './uploads/uploads.constants';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Caddy (production) and the Next dev proxy sit on private addresses; trusting them
+  // makes `req.ip` the visitor's address, which the rate limiter keys on.
+  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+  // Security headers on every response; also drops X-Powered-By.
+  app.use(
+    helmet({
+      // Photos are shown on the web origin, which shares the site with the API.
+      crossOriginResourcePolicy: { policy: 'same-site' },
+    }),
+  );
 
   // Uploaded campaign photos. Only files the upload endpoint wrote (named by
   // UUID, typed by their sniffed bytes) live here; no listings, no dotfiles.

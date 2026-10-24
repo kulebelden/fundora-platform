@@ -9,9 +9,11 @@ import { LedgerEntry } from '../modules/ledger/entities/ledger-entry.entity';
 import { LedgerTransaction } from '../modules/ledger/entities/ledger-transaction.entity';
 import { PaymentIntent } from '../modules/payments/entities/payment-intent.entity';
 import { ProcessedWebhook } from '../modules/payments/entities/processed-webhook.entity';
+import { BankTransferConfirmation } from '../modules/payments/entities/bank-transfer-confirmation.entity';
 import { RefreshToken } from '../auth/refresh-token.entity';
 import { PlatformFeeChange } from '../ledger/platform-fee-change.entity';
 import { EmailVerificationToken } from '../auth/email-verification-token.entity';
+import { PasswordResetToken } from '../auth/password-reset-token.entity';
 import { UserIdentity } from '../auth/user-identity.entity';
 import { KycProfile } from '../modules/kyc/entities/kyc-profile.entity';
 import { WithdrawalRequest } from '../modules/withdrawals/entities/withdrawal-request.entity';
@@ -23,6 +25,7 @@ export const ENTITIES = [
   RefreshToken,
   UserIdentity,
   EmailVerificationToken,
+  PasswordResetToken,
   PlatformFeeChange,
   CampaignCategory,
   Campaign,
@@ -33,6 +36,7 @@ export const ENTITIES = [
   LedgerEntry,
   PaymentIntent,
   ProcessedWebhook,
+  BankTransferConfirmation,
   KycProfile,
   WithdrawalRequest,
   ContactMessage,

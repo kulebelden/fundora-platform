@@ -8,6 +8,10 @@ import {
   MinLength,
 } from 'class-validator';
 
+/** Shared with password reset, so both enforce the same strength rule. */
+export const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+export const PASSWORD_RULE_MESSAGE = 'Password must contain uppercase, lowercase, number, and special characters';
+
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
@@ -29,9 +33,8 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/, {
-    message: 'Password must contain uppercase, lowercase, number, and special characters',
-  })
+  @MaxLength(128)
+  @Matches(PASSWORD_RULE, { message: PASSWORD_RULE_MESSAGE })
   password!: string;
 
   @Transform(trim)

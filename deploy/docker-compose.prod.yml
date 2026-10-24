@@ -54,6 +54,9 @@ services:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+      args:
+        # Absolute links in page metadata (link previews), baked in at build time.
+        SITE_URL: https://${SITE_HOST}
     restart: unless-stopped
     environment:
       API_ORIGIN: http://api:3000

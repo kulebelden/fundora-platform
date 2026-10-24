@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
@@ -29,6 +30,8 @@ export class ContactController {
   ) {}
 
   @Post()
+  // Per IP: enough for real questions, too few for a spam run.
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @HttpCode(201)
   @UseGuards(OptionalJwtAuthGuard)
   async create(

@@ -103,7 +103,7 @@ export class CampaignsService {
           }
         }
 
-        return campaignRepo.save(
+        const created = await campaignRepo.save(
           campaignRepo.create({
             title: dto.title,
             slug,
@@ -118,6 +118,15 @@ export class CampaignsService {
             status: CampaignStatus.DRAFT,
           }),
         );
+
+        // The ledger credits donations to this row and payouts debit it, so every
+        // campaign needs one from the start.
+        await manager.getRepository(CampaignWallet).insert({
+          campaignId: created.id,
+          clearedBalance: '0',
+          pendingBalance: '0',
+        });
+        return created;
       },
     );
 

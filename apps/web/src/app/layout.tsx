@@ -60,6 +60,9 @@ const bricolage = Bricolage_Grotesque({
 const fontVariables = [sans, serif, display, grotesk, sora, syne, bricolage].map((f) => f.variable).join(' ');
 
 export const metadata: Metadata = {
+  // Public address of the site (set per deploy from SITE_HOST), so link previews and
+  // canonical URLs are absolute.
+  metadataBase: new URL(process.env.SITE_URL ?? 'http://localhost:3001'),
   title: {
     default: 'HopeNest — Real People. Real Causes. Greater Impact.',
     template: '%s · HopeNest',

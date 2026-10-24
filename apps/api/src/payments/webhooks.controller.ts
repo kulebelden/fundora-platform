@@ -6,9 +6,12 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 
+/** Not rate limited: providers retry in bursts, and every call is signature-checked. */
+@SkipThrottle()
 @Controller('api/v1/webhooks')
 export class WebhooksController {
   constructor(private readonly paymentsService: PaymentsService) {}

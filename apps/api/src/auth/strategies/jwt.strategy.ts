@@ -58,6 +58,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid access token');
     }
 
+    // A password reset ends every session that existed before it.
+    if (
+      user.passwordChangedAt &&
+      (payload.iat ?? 0) < Math.floor(user.passwordChangedAt.getTime() / 1000)
+    ) {
+      throw new UnauthorizedException('Your session has ended. Please sign in again.');
+    }
+
     const authenticatedUser: AuthenticatedUser = {
       id: user.id,
       email: user.email,

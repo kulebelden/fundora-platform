@@ -459,3 +459,31 @@ export interface PaginatedWithdrawalAudit {
   limit: number;
   byStatus: Partial<Record<WithdrawalStatus, number>>;
 }
+
+/** A pledged bank transfer waiting for finance to match it on the bank statement. */
+export interface PendingBankTransfer {
+  id: string;
+  reference: string;
+  amount: string;
+  currency: string;
+  createdAt: string;
+  donorName: string | null;
+  donorEmail: string | null;
+  campaign: { id: string; title: string; slug: string };
+}
+
+/** The permanent record of a staff member marking a bank transfer as received. */
+export interface BankTransferConfirmation {
+  id: string;
+  paymentIntentId: string;
+  reference: string;
+  bankReference: string;
+  amountReceived: string;
+  currency: string;
+  receivedOn: string;
+  note: string | null;
+  confirmedByEmail: string;
+  confirmedAt: string;
+  donorName: string | null;
+  campaign: { title: string; slug: string };
+}

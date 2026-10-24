@@ -2,16 +2,18 @@
  * Container start-up step, run before the API (see apps/api/Dockerfile).
  *
  * The migrations assume tables already created by `schema:sync` (see README), so a
- * fresh database is first synced from the entities. Every migration except
- * LedgerIntegrity only builds schema that sync has now produced, so those are
- * recorded as applied; LedgerIntegrity (the ledger triggers) and any later
- * migrations then run normally. An existing database just gets pending migrations.
+ * fresh database is first synced from the entities. Every migration except the
+ * trigger-only ones (RUN_ON_FRESH_DATABASE) only builds schema that sync has now
+ * produced, so those are recorded as applied; the trigger-only ones (the ledger and
+ * bank-confirmation triggers) and any later migrations then run normally. An
+ * existing database just gets pending migrations.
  * Campaign categories missing from the database are inserted on every start.
  */
 const dataSource = require('../dist/database/data-source').default;
 const { CATEGORIES } = require('../dist/database/categories');
 
-const RUN_ON_FRESH_DATABASE = ['LedgerIntegrity1730000000000'];
+// Schema sync creates no triggers, so the migrations that only add triggers still run.
+const RUN_ON_FRESH_DATABASE = ['LedgerIntegrity1730000000000', 'BankConfirmationsAppendOnly1730000009100'];
 
 async function main() {
   await dataSource.initialize();

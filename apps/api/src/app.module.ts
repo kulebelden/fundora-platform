@@ -1,6 +1,8 @@
 import { AppController } from './auth/src/app.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EnvironmentVariables, validateEnv } from './config/env.validation';
 import { buildDataSourceOptions } from './database/database-options';
@@ -13,10 +15,11 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { AdminModule } from './admin/admin.module';
 import { ContactModule } from './contact/contact.module';
-
+import { ClientIpThrottlerGuard } from './common/client-ip-throttler.guard';
 
 @Module({
   controllers: [AppController],
+  providers: [{ provide: APP_GUARD, useClass: ClientIpThrottlerGuard }],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -34,6 +37,12 @@ import { ContactModule } from './contact/contact.module';
           password: config.get('DB_PASSWORD', { infer: true }),
           ssl: config.get('DB_SSL', { infer: true }),
         }),
+    }),
+    // Per client IP, across the whole API. Sign-in, sign-up, donations and other
+    // sensitive routes set tighter limits with @Throttle.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+      errorMessage: 'Too many requests. Please wait a few minutes and try again.',
     }),
     AuthModule,
     CampaignsModule,

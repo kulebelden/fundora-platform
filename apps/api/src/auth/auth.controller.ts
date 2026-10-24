@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { Response, CookieOptions, Request } from 'express';
@@ -29,6 +30,7 @@ import { AuthenticatedRequest } from './interfaces/authenticated-request';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthService, VerificationPending } from './auth.service';
 import { ResendVerificationDto, VerifyEmailDto } from './dto/email-verification.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
@@ -57,6 +59,13 @@ const STAFF_ROLES: readonly UserRole[] = [
   UserRole.FINANCE_OFFICER,
 ];
 
+/** Per client IP. Tighter than the global limit: these are what attackers hammer. */
+const MINUTE = 60_000;
+const SIGN_UP_LIMIT = { default: { limit: 5, ttl: 60 * MINUTE } };
+const LOGIN_LIMIT = { default: { limit: 10, ttl: 5 * MINUTE } };
+const EMAIL_LINK_LIMIT = { default: { limit: 5, ttl: 15 * MINUTE } };
+const TOKEN_LIMIT = { default: { limit: 10, ttl: 15 * MINUTE } };
+
 /** Same-origin paths only, so a crafted `?next=` cannot send a new session off-site. */
 function safeNextPath(next: string | undefined): string | null {
   return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\')
@@ -80,6 +89,7 @@ export class AuthController {
    * When verification is switched off, the account is signed in straight away.
    */
   @Post('register')
+  @Throttle(SIGN_UP_LIMIT)
   @HttpCode(201)
   async register(
     @Body() dto: RegisterDto,
@@ -92,6 +102,7 @@ export class AuthController {
 
   /** Opens the emailed link: verifies the address and signs the person in. */
   @Post('verify-email')
+  @Throttle(TOKEN_LIMIT)
   @HttpCode(200)
   async verifyEmail(
     @Body() dto: VerifyEmailDto,
@@ -104,6 +115,7 @@ export class AuthController {
 
   /** Always 200, whether or not the address has an account. */
   @Post('resend-verification')
+  @Throttle(EMAIL_LINK_LIMIT)
   @HttpCode(200)
   async resendVerification(@Body() dto: ResendVerificationDto): Promise<{ message: string }> {
     await this.authService.resendVerification(dto.email);
@@ -111,6 +123,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle(LOGIN_LIMIT)
   @HttpCode(200)
   async login(
     @Body() dto: LoginDto,
@@ -120,6 +133,28 @@ export class AuthController {
     this.setAuthCookies(res, response);
 
     return response;
+  }
+
+  /** Always 200, whether or not the address has an account. */
+  @Post('forgot-password')
+  @Throttle(EMAIL_LINK_LIMIT)
+  @HttpCode(200)
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { message: 'If that address has an account, a reset link is on its way.' };
+  }
+
+  /** Sets the new password and signs out every device, including this one. */
+  @Post('reset-password')
+  @Throttle(TOKEN_LIMIT)
+  @HttpCode(200)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    await this.authService.resetPassword(dto.token, dto.password);
+    this.clearAuthCookies(res);
+    return { message: 'Your password has been changed. Sign in with the new one.' };
   }
 
   @Post('refresh')

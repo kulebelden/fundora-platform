@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { AlertCircle, Check, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
 import { CheckInbox } from '@/components/auth/check-inbox';
+import { PasswordChecklist, passwordSchema } from '@/components/auth/password-rules';
 import { AuthDivider, OAuthButtons } from '@/components/auth/oauth-buttons';
 import { AuthSplitLayout } from '@/components/auth-split-layout';
 import { Button } from '@/components/ui/button';
@@ -16,16 +17,6 @@ import { Label } from '@/components/ui/label';
 import { apiErrorMessage } from '@/lib/api';
 import { useRegister } from '@/lib/queries';
 import { isAdminRole } from '@/lib/types';
-import { cn } from '@/lib/utils';
-
-/** Mirrors RegisterDto in apps/api so the user sees failures before a round trip. */
-const RULES = [
-  { label: 'At least 8 characters', test: (value: string) => value.length >= 8 },
-  { label: 'A lowercase letter', test: (value: string) => /[a-z]/.test(value) },
-  { label: 'An uppercase letter', test: (value: string) => /[A-Z]/.test(value) },
-  { label: 'A number', test: (value: string) => /\d/.test(value) },
-  { label: 'A special character', test: (value: string) => /[^A-Za-z0-9]/.test(value) },
-];
 
 const schema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(100),
@@ -35,13 +26,7 @@ const schema = z.object({
     .string()
     .trim()
     .regex(/^\+[1-9]\d{7,14}$/, 'Use international format, for example +12025550143'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
-      'Password must include upper and lower case, a number and a special character',
-    ),
+  password: passwordSchema,
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -207,23 +192,7 @@ export function RegisterForm() {
             </button>
           </div>
 
-          <ul className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
-            {RULES.map((rule) => {
-              const met = rule.test(password);
-              return (
-                <li
-                  key={rule.label}
-                  className={cn(
-                    'flex items-center gap-1.5 text-xs transition-colors',
-                    met ? 'text-success' : 'text-muted-foreground',
-                  )}
-                >
-                  <Check className={cn('h-3.5 w-3.5', !met && 'opacity-30')} />
-                  {rule.label}
-                </li>
-              );
-            })}
-          </ul>
+          <PasswordChecklist password={password} />
         </div>
 
         <Button type="submit" size="lg" className="w-full" disabled={registerUser.isPending}>
@@ -241,7 +210,15 @@ export function RegisterForm() {
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">
-          By continuing you agree to HopeNest&apos;s terms and privacy policy.
+          By continuing you agree to HopeNest&apos;s{' '}
+          <Link href="/terms" className="font-semibold underline-offset-2 hover:underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="font-semibold underline-offset-2 hover:underline">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </form>
     </AuthSplitLayout>

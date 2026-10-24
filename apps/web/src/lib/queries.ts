@@ -10,6 +10,8 @@ import { api, isUnauthorized } from './api';
 import { queryKeys } from './query-keys';
 import type {
   BankAccountDetails,
+  BankTransferConfirmation,
+  PendingBankTransfer,
   AdminOverview,
   ContactMessageInput,
   ContactMessageView,
@@ -126,6 +128,28 @@ export function useResendVerification() {
   return useMutation({
     mutationFn: async (email: string) => {
       await api.post('/auth/resend-verification', { email });
+    },
+  });
+}
+
+/** Always succeeds, whether or not the address has an account. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      await api.post('/auth/forgot-password', { email });
+    },
+  });
+}
+
+/** Sets the new password; the API signs out every device, so the person logs in again. */
+export function useResetPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { token: string; password: string }) => {
+      await api.post('/auth/reset-password', payload);
+    },
+    onSuccess: () => {
+      queryClient.clear();
     },
   });
 }
@@ -770,5 +794,55 @@ export function useAdminWithdrawalAudit(status: WithdrawalStatus | 'ALL', page =
     placeholderData: (previous) => previous,
     refetchInterval: 30_000,
     retry: 1,
+  });
+}
+
+export function usePendingBankTransfers() {
+  return useQuery({
+    queryKey: queryKeys.adminBankTransfers('pending'),
+    queryFn: async () => {
+      const { data } = await api.get<PendingBankTransfer[]>('/admin/bank-transfers', {
+        params: { status: 'pending' },
+      });
+      return data;
+    },
+  });
+}
+
+export function useBankTransferConfirmations() {
+  return useQuery({
+    queryKey: queryKeys.adminBankTransfers('confirmed'),
+    queryFn: async () => {
+      const { data } = await api.get<BankTransferConfirmation[]>('/admin/bank-transfers', {
+        params: { status: 'confirmed' },
+      });
+      return data;
+    },
+  });
+}
+
+/** Marks a pledged transfer as received; the API re-checks the staff password. */
+export function useConfirmBankTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...body
+    }: {
+      id: string;
+      bankReference: string;
+      amountReceived: string;
+      receivedOn: string;
+      note?: string;
+      password: string;
+    }) => {
+      const { data } = await api.post<BankTransferConfirmation>(`/admin/bank-transfers/${id}/confirm`, body);
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'bank-transfers'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'donations'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminOverview });
+    },
   });
 }
